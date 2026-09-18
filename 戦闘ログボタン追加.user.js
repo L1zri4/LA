@@ -2,7 +2,7 @@
 // @name         LA 戦闘ログボタン追加
 // @namespace    la-us.battlelog
 // @version      1.1
-// @description  プロフのに「戦闘ログ」ボタンを追加
+// @description  プロフに「戦闘ログ」ボタンを追加
 // @match        https://rarirupj.com/leciar/profile*
 // @grant        none
 // @run-at       document-end
