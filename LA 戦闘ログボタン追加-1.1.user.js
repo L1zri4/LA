@@ -1,0 +1,35 @@
+// ==UserScript==
+// @name         LA 戦闘ログボタン追加
+// @namespace    la-us.battlelog
+// @version      1.1
+// @description  プロフのに「戦闘ログ」ボタンを追加
+// @match        https://rarirupj.com/leciar/profile*
+// @grant        none
+// @run-at       document-end
+// ==/UserScript==
+
+(function () {
+  'use strict';
+
+  function getEno() {
+    var fromQuery = new URLSearchParams(location.search).get('ENo');
+    if (fromQuery) return fromQuery;
+
+    var hidden = document.querySelector('.profile-relation input[name="target"]');
+    if (hidden && hidden.value) return hidden.value;
+
+    return null;
+  }
+
+  var container = document.querySelector('.profile-relation');
+  var eno = container && getEno();
+  if (!eno) return;
+
+  var a = document.createElement('a');
+  a.className = 'button la-battlelog-button';
+  a.style.lineHeight = '1.15';
+  a.textContent = '戦闘ログ';
+  a.href = 'https://rarirupj.com/leciar/logs?target=' + encodeURIComponent(eno) + '&title=&mode=member&results=';
+
+  container.insertBefore(a, container.firstChild);
+})();
