@@ -1,8 +1,8 @@
 // ==UserScript==
-// @name         la-battle-skill-tooltip
+// @name         LA 戦闘詳細拡張
 // @namespace    la-us.result
 // @version      1.0.0
-// @description  戦闘詳細画面のスキル名を標準化
+// @description  戦闘詳細画面のスキル名を標準化＆ツールチップ表示
 // @author       unknown
 // @match        https://rarirupj.com/leciar/log*
 // @updateURL    https://raw.githubusercontent.com/USERNAME/REPO/main/la-battle-skill-tooltip.user.js
