@@ -1,12 +1,10 @@
 // ==UserScript==
 // @name         LA 戦闘詳細拡張
 // @namespace    la-us.result
-// @version      1.0.0
-// @description  戦闘詳細画面のスキル名を標準化＆ツールチップ表示
-// @author       unknown
+// @version      1.1.0
+// @description  戦闘詳細画面のスキル名を標準化
+// @author       -
 // @match        https://rarirupj.com/leciar/log*
-// @updateURL    https://github.com/L1zri4/LA/raw/refs/heads/main/la-battle-skill-tooltip.user.js
-// @downloadURL  https://github.com/L1zri4/LA/raw/refs/heads/main/la-battle-skill-tooltip.user.js
 // @grant        none
 // @run-at       document-idle
 // ==/UserScript==
@@ -234,34 +232,54 @@
     return null;
   }
 
-  function buildRenameMap() {
+  function buildUsage() {
     const byActor = new Map();
     const global = new Map();
 
     document.querySelectorAll('.skill-name, .skill-name-enemy').forEach((el) => {
       const dn = el.querySelector('.d-name');
-      if (!dn) return;
+      const std = dn ? sq(dn.textContent).replace(/[《》]/g, '').trim() : '';
 
-      const std = sq(dn.textContent).replace(/[《》]/g, '').trim();
       const clone = el.cloneNode(true);
       clone.querySelectorAll('.d-name').forEach((n) => n.remove());
       const custom = sq(clone.textContent).replace(/[！!]\s*$/, '').trim();
-
-      if (!std || !custom || std === custom) return;
+      if (!custom) return;
 
       const actor = findActorName(el);
       if (actor) {
-        if (!byActor.has(actor)) byActor.set(actor, new Map());
-        byActor.get(actor).set(custom, std);
+        let list = byActor.get(actor);
+        if (!list) { list = []; byActor.set(actor, list); }
+        const hit = list.find((e) => e.custom === custom && e.std === std);
+        if (hit) hit.count++;
+        else list.push({ custom: custom, std: std, count: 1 });
       }
-      if (global.has(custom)) {
-        if (global.get(custom) !== std) global.set(custom, null);
-      } else {
-        global.set(custom, std);
+
+      if (std && std !== custom) {
+        if (global.has(custom)) {
+          if (global.get(custom) !== std) global.set(custom, null);
+        } else {
+          global.set(custom, std);
+        }
       }
     });
 
     return { byActor, global };
+  }
+
+  function resolveStd(usage, actor, shown, count, nth) {
+    const list = actor ? usage.byActor.get(actor) : null;
+    if (list) {
+      const cands = list.filter((e) => e.custom === shown);
+      if (cands.length === 1) return cands[0].std || null;
+      if (cands.length > 1) {
+        const byCount = cands.filter((e) => e.count === count);
+        if (byCount.length === 1) return byCount[0].std || null;
+        const pick = cands[nth] || cands[0];
+        return pick.std || null;
+      }
+    }
+    const g = usage.global.get(shown);
+    return g || null;
   }
 
   const CELL_RE = /^\s*┗\s*(.+?)\s*\((\d+)\)\s*$/;
@@ -272,49 +290,52 @@
     return sq(td.textContent).replace(/^■\s*/, '').replace(/\s+/g, '').trim();
   }
 
-  function applySummary(rename) {
+  function applySummary(usage) {
     const tbody = document.querySelector('.battle-summary-table tbody');
     if (!tbody) return false;
 
     let actor = null;
-    let perActor = null;
+    const seen = new Map();
 
     tbody.querySelectorAll('tr').forEach((tr) => {
       if (!tr.classList.contains('skill-detail-row')) {
         const n = unitNameOf(tr);
-        if (n) {
-          actor = n;
-          perActor = rename.byActor.get(n) || null;
-        }
+        if (n) actor = n;
         return;
       }
 
       const cell = tr.querySelector('td.skill-name-cell');
-      if (!cell || cell.dataset.laSx === '1') return;
+      if (!cell) return;
 
-      const m = (cell.textContent || '').match(CELL_RE);
+      const raw = cell.dataset.laSx === '1'
+        ? '┗ ' + (cell.dataset.laShown || '') + ' (' + (cell.dataset.laCount || '0') + ')'
+        : (cell.textContent || '');
+
+      const m = raw.match(CELL_RE);
       if (!m) return;
+
       const shown = m[1];
-      const count = m[2];
+      const count = Number(m[2]);
 
-      let std = null;
-      if (perActor && perActor.has(shown)) {
-        std = perActor.get(shown);
-      } else {
-        const g = rename.global.get(shown);
-        if (g) std = g;
-      }
+      const key = (actor || '') + '\u0000' + shown;
+      const nth = seen.get(key) || 0;
+      seen.set(key, nth + 1);
 
-      const finalName = std || shown;
+      if (cell.dataset.laSx === '1') return;
+
+      const std = resolveStd(usage, actor, shown, count, nth);
+      const finalName = (std && std !== shown) ? std : shown;
 
       cell.dataset.laSx = '1';
       cell.dataset.laName = finalName;
-      if (std) cell.dataset.laAlias = shown;
+      cell.dataset.laShown = shown;
+      cell.dataset.laCount = String(count);
+      if (std && std !== shown) cell.dataset.laAlias = shown;
       if (actor) cell.dataset.laActor = actor;
 
       if (!NO_TOOLTIP.has(finalName)) {
         cell.classList.add('la-sx-cell');
-        if (std) cell.classList.add('la-sx-renamed');
+        if (std && std !== shown) cell.classList.add('la-sx-renamed');
         if (!lookup(finalName)) cell.classList.add('la-sx-nodata');
       }
 
@@ -456,12 +477,12 @@
     window.addEventListener('resize', hideTip);
   }
 
-  let rename = null;
+  let usage = null;
 
   function run() {
     if (!document.querySelector('.battle-summary-table tbody')) return false;
-    if (!rename) rename = buildRenameMap();
-    return applySummary(rename);
+    if (!usage) usage = buildUsage();
+    return applySummary(usage);
   }
 
   async function main() {
