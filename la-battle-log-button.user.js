@@ -5,8 +5,8 @@
 // @description  プロフに「戦闘ログ」ボタンを追加
 // @author       unknown
 // @match        https://rarirupj.com/leciar/profile*
-// @updateURL    https://raw.githubusercontent.com/USERNAME/REPO/main/la-battle-log-button.user.js
-// @downloadURL  https://raw.githubusercontent.com/USERNAME/REPO/main/la-battle-log-button.user.js
+// @updateURL    https://github.com/L1zri4/LA/raw/refs/heads/main/la-battle-log-button.user.js
+// @downloadURL  https://github.com/L1zri4/LA/raw/refs/heads/main/la-battle-log-button.user.js
 // @grant        none
 // @run-at       document-end
 // ==/UserScript==
