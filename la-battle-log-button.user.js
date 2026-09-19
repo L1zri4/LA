@@ -1,5 +1,5 @@
 // ==UserScript==
-// @name         la-battle-log-button
+// @name         LA 戦闘ログボタン追加
 // @namespace    la-us.battlelog
 // @version      1.0.0
 // @description  プロフに「戦闘ログ」ボタンを追加
