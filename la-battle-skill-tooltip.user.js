@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         LA 戦闘詳細拡張
 // @namespace    la-us.result
-// @version      1.1.0
+// @version      1.1.1
 // @description  戦闘詳細画面のスキル名を標準化
 // @author       -
 // @match        https://rarirupj.com/leciar/log*
@@ -59,7 +59,6 @@
 
   function injectStyle() {
     const s = document.createElement('style');
-    s.id = 'la-sx-style';
     s.textContent = CSS;
     (document.head || document.documentElement).appendChild(s);
   }
@@ -112,7 +111,7 @@
 
   function parseSkillCatalog(doc) {
     const data = {};
-    doc.querySelectorAll('.skill-catalog tr.catalog-data-row, tr.catalog-data-row').forEach((tr) => {
+    doc.querySelectorAll('tr.catalog-data-row').forEach((tr) => {
       const td = tr.querySelectorAll('td');
       if (td.length < 4) return;
       const name = sq(td[0].textContent);
@@ -224,7 +223,7 @@
       const a = pt.querySelector(':scope > .actor');
       if (a) return cleanActor(a.textContent);
     }
-    const turn = el.closest('section.turn, .turn');
+    const turn = el.closest('.turn');
     if (turn) {
       const a = turn.querySelector(':scope > .actor');
       if (a) return cleanActor(a.textContent);
@@ -331,7 +330,6 @@
       cell.dataset.laShown = shown;
       cell.dataset.laCount = String(count);
       if (std && std !== shown) cell.dataset.laAlias = shown;
-      if (actor) cell.dataset.laActor = actor;
 
       if (!NO_TOOLTIP.has(finalName)) {
         cell.classList.add('la-sx-cell');
