@@ -16,10 +16,9 @@
 
   const SKILL_URL = '/leciar/thread?page=skills';
   const ITEM_URL = '/leciar/thread?page=items';
-  const SKILL_CACHE_KEY = 'la-btl-skill-catalog-v2';
-  const ITEM_CACHE_KEY = 'la-btl-item-catalog-v2';
-  const CACHE_TTL = 24 * 60 * 60 * 1000;
-  const UNRESOLVED_REFETCH_COOLDOWN = 60 * 1000;
+  const SKILL_CACHE_KEY = 'la-btl-skill-catalog';
+  const ITEM_CACHE_KEY = 'la-btl-item-catalog';
+  const CACHE_TTL = 3 * 60 * 60 * 1000;
 
   const NO_TOOLTIP = new Set(['通常攻撃', 'チェインスキル']);
 
@@ -152,7 +151,7 @@
   let skillCatalog = {};
   let itemCatalog = {};
   let loadError = null;
-  let skillFetchedAt = 0;
+  let fetchedFresh = false;
 
   async function loadCatalog(url, cacheKey, parseFn, label, target, force) {
     if (!force) {
@@ -168,6 +167,7 @@
       if (!Object.keys(d).length) throw new Error(label + '表を抽出できませんでした');
       Object.assign(target, d);
       writeCache(cacheKey, target);
+      fetchedFresh = true;
       return true;
     } catch (e) {
       loadError = (loadError ? loadError + ' / ' : '') +
@@ -176,21 +176,25 @@
     }
   }
 
-  async function loadCatalogs() {
+  async function loadCatalogs(force) {
     const [skillOk, itemOk] = await Promise.all([
-      loadCatalog(SKILL_URL, SKILL_CACHE_KEY, parseSkillCatalog, 'スキル', skillCatalog, false),
-      loadCatalog(ITEM_URL, ITEM_CACHE_KEY, parseItemCatalog, 'アイテム', itemCatalog, false)
+      loadCatalog(SKILL_URL, SKILL_CACHE_KEY, parseSkillCatalog, 'スキル', skillCatalog, force),
+      loadCatalog(ITEM_URL, ITEM_CACHE_KEY, parseItemCatalog, 'アイテム', itemCatalog, force)
     ]);
-    skillFetchedAt = Date.now();
     return skillOk && itemOk;
   }
 
   let catalogsReady = false;
 
-  function refetchSkillsForUnresolved() {
-    if (Date.now() - skillFetchedAt < UNRESOLVED_REFETCH_COOLDOWN) return;
-    skillFetchedAt = Date.now();
-    loadCatalog(SKILL_URL, SKILL_CACHE_KEY, parseSkillCatalog, 'スキル', skillCatalog, true);
+  function tipCells() {
+    return Array.from(document.querySelectorAll('td.skill-name-cell.la-sx-cell'));
+  }
+
+  async function resolveMissing() {
+    if (fetchedFresh || !tipCells().some((c) => !lookup(c.dataset.laName))) return;
+    loadError = null;
+    catalogsReady = await loadCatalogs(true);
+    tipCells().forEach((c) => c.classList.toggle('la-sx-nodata', !lookup(c.dataset.laName)));
   }
 
   function lookup(name) {
@@ -413,7 +417,6 @@
       n.className = 'la-sx-note';
       if (catalogsReady) {
         n.textContent = '現時点で詳細不明のスキルです';
-        refetchSkillsForUnresolved();
       } else {
         n.textContent = 'スキル/アイテム一覧を取得できませんでした' + (loadError ? '：' + loadError : '');
       }
@@ -486,16 +489,17 @@
     injectStyle();
     bindTip();
 
-    catalogsReady = await loadCatalogs();
+    catalogsReady = await loadCatalogs(false);
 
     if (!run()) {
-      const mo = new MutationObserver(() => { if (run()) mo.disconnect(); });
+      const mo = new MutationObserver(() => { if (run()) { mo.disconnect(); resolveMissing(); } });
       mo.observe(document.body, { childList: true, subtree: true });
       setTimeout(() => mo.disconnect(), 30000);
     } else {
       const host = document.querySelector('.battle-summary') || document.body;
       const mo2 = new MutationObserver(() => run());
       mo2.observe(host, { childList: true, subtree: true });
+      resolveMissing();
     }
   }
 
