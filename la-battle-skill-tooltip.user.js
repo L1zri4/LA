@@ -1,12 +1,14 @@
 // ==UserScript==
 // @name         LA 戦闘詳細拡張
 // @namespace    la-us.result
-// @version      1.1.1
+// @version      1.2.0
 // @description  戦闘詳細画面のスキル名を標準化
 // @author       -
 // @match        https://rarirupj.com/leciar/log*
 // @grant        none
 // @run-at       document-idle
+// @updateURL    https://github.com/L1zri4/LA/raw/refs/heads/main/la-battle-skill-tooltip.user.js
+// @downloadURL  https://github.com/L1zri4/LA/raw/refs/heads/main/la-battle-skill-tooltip.user.js
 // ==/UserScript==
 
 (function () {
@@ -17,6 +19,7 @@
   const SKILL_CACHE_KEY = 'la-btl-skill-catalog-v2';
   const ITEM_CACHE_KEY = 'la-btl-item-catalog-v2';
   const CACHE_TTL = 24 * 60 * 60 * 1000;
+  const UNRESOLVED_REFETCH_COOLDOWN = 60 * 1000;
 
   const NO_TOOLTIP = new Set(['通常攻撃', 'チェインスキル']);
 
@@ -91,10 +94,8 @@
       const raw = localStorage.getItem(key);
       if (!raw) return null;
       const c = JSON.parse(raw);
-      if (!c || !c.t || !c.d) return null;
-      if (Date.now() - c.t > CACHE_TTL) return null;
-      if (!Object.keys(c.d).length) return null;
-      return c.d;
+      if (!c || !c.t || !c.d || !Object.keys(c.d).length) return null;
+      return c;
     } catch (e) { return null; }
   }
 
@@ -148,64 +149,59 @@
     return data;
   }
 
-  let skillCatalog = null;
-  let itemCatalog = null;
+  let skillCatalog = {};
+  let itemCatalog = {};
   let loadError = null;
+  let skillFetchedAt = 0;
 
-  async function loadCatalogs() {
-    const cs = readCache(SKILL_CACHE_KEY);
-    const ci = readCache(ITEM_CACHE_KEY);
-    if (cs) skillCatalog = cs;
-    if (ci) itemCatalog = ci;
-
-    const jobs = [];
-
-    if (!skillCatalog) {
-      jobs.push(
-        fetchDoc(SKILL_URL).then((doc) => {
-          const d = parseSkillCatalog(doc);
-          if (!Object.keys(d).length) throw new Error('スキル表を抽出できませんでした');
-          skillCatalog = d;
-          writeCache(SKILL_CACHE_KEY, d);
-        }).catch((e) => {
-          loadError = 'スキル一覧: ' + (e && e.message ? e.message : String(e));
-        })
-      );
+  async function loadCatalog(url, cacheKey, parseFn, label, target, force) {
+    if (!force) {
+      const c = readCache(cacheKey);
+      if (c) {
+        Object.assign(target, c.d);
+        if (Date.now() - c.t < CACHE_TTL) return true;
+      }
     }
-
-    if (!itemCatalog) {
-      jobs.push(
-        fetchDoc(ITEM_URL).then((doc) => {
-          const d = parseItemCatalog(doc);
-          if (!Object.keys(d).length) throw new Error('アイテム表を抽出できませんでした');
-          itemCatalog = d;
-          writeCache(ITEM_CACHE_KEY, d);
-        }).catch((e) => {
-          loadError = (loadError ? loadError + ' / ' : '') +
-            'アイテム一覧: ' + (e && e.message ? e.message : String(e));
-        })
-      );
+    try {
+      const doc = await fetchDoc(url);
+      const d = parseFn(doc);
+      if (!Object.keys(d).length) throw new Error(label + '表を抽出できませんでした');
+      Object.assign(target, d);
+      writeCache(cacheKey, target);
+      return true;
+    } catch (e) {
+      loadError = (loadError ? loadError + ' / ' : '') +
+        label + '一覧: ' + (e && e.message ? e.message : String(e));
+      return Object.keys(target).length > 0;
     }
-
-    if (jobs.length) await Promise.all(jobs);
   }
 
-  const catalogsReady = () => !!(skillCatalog && itemCatalog);
+  async function loadCatalogs() {
+    const [skillOk, itemOk] = await Promise.all([
+      loadCatalog(SKILL_URL, SKILL_CACHE_KEY, parseSkillCatalog, 'スキル', skillCatalog, false),
+      loadCatalog(ITEM_URL, ITEM_CACHE_KEY, parseItemCatalog, 'アイテム', itemCatalog, false)
+    ]);
+    skillFetchedAt = Date.now();
+    return skillOk && itemOk;
+  }
+
+  let catalogsReady = false;
+
+  function refetchSkillsForUnresolved() {
+    if (Date.now() - skillFetchedAt < UNRESOLVED_REFETCH_COOLDOWN) return;
+    skillFetchedAt = Date.now();
+    loadCatalog(SKILL_URL, SKILL_CACHE_KEY, parseSkillCatalog, 'スキル', skillCatalog, true);
+  }
 
   function lookup(name) {
     if (!name) return null;
 
-    if (skillCatalog) {
-      if (skillCatalog[name]) return Object.assign({ source: 'skill' }, skillCatalog[name]);
-      const b = baseName(name);
-      if (b !== name && skillCatalog[b]) return Object.assign({ source: 'skill' }, skillCatalog[b]);
-    }
+    if (skillCatalog[name]) return Object.assign({ source: 'skill' }, skillCatalog[name]);
+    const b = baseName(name);
+    if (b !== name && skillCatalog[b]) return Object.assign({ source: 'skill' }, skillCatalog[b]);
 
-    if (itemCatalog) {
-      const b = baseName(name);
-      const hit = itemCatalog[name] || itemCatalog[b];
-      if (hit) return Object.assign({ source: 'item' }, hit);
-    }
+    const hit = itemCatalog[name] || itemCatalog[b];
+    if (hit) return Object.assign({ source: 'item' }, hit);
 
     return null;
   }
@@ -415,9 +411,12 @@
     } else {
       const n = document.createElement('div');
       n.className = 'la-sx-note';
-      n.textContent = catalogsReady()
-        ? '現時点で詳細不明のスキルです'
-        : 'スキル/アイテム一覧を取得できませんでした' + (loadError ? '：' + loadError : '');
+      if (catalogsReady) {
+        n.textContent = '現時点で詳細不明のスキルです';
+        refetchSkillsForUnresolved();
+      } else {
+        n.textContent = 'スキル/アイテム一覧を取得できませんでした' + (loadError ? '：' + loadError : '');
+      }
       frag.appendChild(n);
     }
 
@@ -487,7 +486,7 @@
     injectStyle();
     bindTip();
 
-    await loadCatalogs();
+    catalogsReady = await loadCatalogs();
 
     if (!run()) {
       const mo = new MutationObserver(() => { if (run()) mo.disconnect(); });
