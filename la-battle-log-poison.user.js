@@ -1,9 +1,12 @@
 // ==UserScript==
 // @name         LA 戦闘詳細に被毒列を追加
 // @namespace    la-us.poison
-// @version      1.1.0
+// @version      1.0.0
 // @description  戦闘詳細テーブルのダメージ欄に「被毒」を追加
+// @author       unknown
 // @match        https://rarirupj.com/leciar/log?id=*
+// @updateURL    https://github.com/L1zri4/LA/raw/refs/heads/main/la-battle-log-poison.user.js
+// @downloadURL  https://github.com/L1zri4/LA/raw/refs/heads/main/la-battle-log-poison.user.js
 // @run-at       document-idle
 // @grant        none
 // ==/UserScript==
