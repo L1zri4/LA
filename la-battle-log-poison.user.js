@@ -44,8 +44,6 @@
     @media (min-width:1200px){.battle-summary{--w:max(100%, min(1000px, min(100vw, 1600px) - 640px));width:var(--w);max-width:none;margin-left:calc((100% - var(--w)) / 2)}}
   </style>`);
 
-  // スマホ幅ではサイトが古いラウンドをDOMから外し(HTMLはroundSectionsに退避)、最終ラウンド内の表も作り直す。
-  // 集計は全ラウンド分のHTMLから行い、表は出現のたびに処理する。roundSectionsが無ければDOMで集計(PC幅なら全件ある)。
   const html = window.roundSections
     ? roundSections.map(r => r.isPurged ? r.html : r.el.innerHTML).join('')
     : document.body.innerHTML;
