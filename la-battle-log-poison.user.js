@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         LA 戦闘詳細に被毒列を追加
 // @namespace    la-us.poison
-// @version      1.0.1
+// @version      1.0.2
 // @description  戦闘詳細テーブルのダメージ欄に「被毒」を追加
 // @author       unknown
 // @match        https://rarirupj.com/leciar/log?id=*
@@ -44,16 +44,17 @@
     @media (min-width:1200px){.battle-summary{--w:max(100%, min(1000px, min(100vw, 1600px) - 640px));width:var(--w);max-width:none;margin-left:calc((100% - var(--w)) / 2)}}
   </style>`);
 
-  fetch(location.href, { cache: 'force-cache' })
-    .then(r => r.ok ? r.text() : Promise.reject(r.status))
-    .then(html => {
-      const poison = new Map();
-      for (const el of new DOMParser().parseFromString(html, 'text/html').querySelectorAll('.depth-result')) {
-        const m = el.textContent.trim().match(POISON_RE);
-        if (m) poison.set(m[1], (poison.get(m[1]) || 0) + Number(m[2].replace(/,/g, '')));
-      }
-      const apply = () => document.querySelectorAll('.battle-summary-table:not([data-poison])').forEach(t => addColumn(t, poison));
-      apply();
-      new MutationObserver(apply).observe(document.body, { childList: true, subtree: true });
-    });
+  // スマホ幅ではサイトが古いラウンドをDOMから外し(HTMLはroundSectionsに退避)、最終ラウンド内の表も作り直す。
+  // 集計は全ラウンド分のHTMLから行い、表は出現のたびに処理する。roundSectionsが無ければDOMで集計(PC幅なら全件ある)。
+  const html = window.roundSections
+    ? roundSections.map(r => r.isPurged ? r.html : r.el.innerHTML).join('')
+    : document.body.innerHTML;
+  const poison = new Map();
+  for (const el of new DOMParser().parseFromString(html, 'text/html').querySelectorAll('.depth-result')) {
+    const m = el.textContent.trim().match(POISON_RE);
+    if (m) poison.set(m[1], (poison.get(m[1]) || 0) + Number(m[2].replace(/,/g, '')));
+  }
+  const apply = () => document.querySelectorAll('.battle-summary-table:not([data-poison])').forEach(t => addColumn(t, poison));
+  apply();
+  new MutationObserver(apply).observe(document.body, { childList: true, subtree: true });
 })();
