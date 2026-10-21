@@ -1,0 +1,1215 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>LA ビルドシミュレータ</title>
+<style>
+:root{--bg:#1c1f1d;--card:#262a27;--card2:#2f3430;--line:#3d443f;--tx:#ddd;--sub:#9aa39c;--ac:#70ca7c;--ac2:#2d7a47;--ng:#e07070;--warn:#e6b84d;--info:#88ccff}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--tx);font:14px/1.6 "BIZ UDPGothic","Hiragino Kaku Gothic ProN",Meiryo,sans-serif}
+header{display:flex;flex-wrap:wrap;align-items:baseline;gap:6px 16px;padding:10px 16px;border-bottom:1px solid var(--line);background:#121412}
+header h1{margin:0;font-size:18px;color:#fff}
+header .meta{color:var(--sub);font-size:12px}
+main{display:grid;grid-template-columns:310px 390px minmax(0,1fr);gap:12px;padding:12px;align-items:start}
+@media(max-width:1300px){main{grid-template-columns:310px minmax(0,1fr)}#list-col{grid-column:1/-1}}
+@media(max-width:760px){main{grid-template-columns:minmax(0,1fr)}}
+.card{background:var(--card);border:1px solid var(--line);border-radius:8px;padding:10px 12px;margin-bottom:12px}
+.card h2{margin:0 0 8px;font-size:14px;color:var(--ac);border-bottom:1px solid var(--line);padding-bottom:4px;display:flex;justify-content:space-between;align-items:center;gap:8px}
+.card h2 small{color:var(--sub);font-weight:normal}
+label.f{display:flex;align-items:center;justify-content:space-between;gap:8px;margin:4px 0}
+input,select,button{font:inherit;color:#eee;background:#151816;border:1px solid #555;border-radius:4px;padding:3px 6px}
+input[type=number]{width:72px;text-align:right}
+button{cursor:pointer;background:var(--card2)}
+button:hover{border-color:var(--ac)}
+button.pri{background:var(--ac2);border-color:#3c8f58}
+button.sm{padding:0 6px;font-size:12px}
+button:disabled{opacity:.4;cursor:default}
+.big{font-size:20px;font-weight:bold}
+.neg{color:var(--ng)!important}
+.pos{color:var(--ac)}
+.muted{color:var(--sub);font-size:12px}
+table{border-collapse:collapse;width:100%}
+#stat-tbl td,#stat-tbl th{padding:3px 2px;border-bottom:1px solid var(--line);vertical-align:middle}
+#stat-tbl th{text-align:left;white-space:nowrap;width:3em}
+#stat-tbl .pm{white-space:nowrap}
+#stat-tbl .pm button{width:30px;padding:2px 0}
+#stat-tbl .pm input{width:52px}
+#stat-tbl .nx{font-size:11px;color:var(--sub)}
+.sumrow{display:flex;justify-content:space-between;align-items:baseline;gap:8px}
+.books{display:grid;grid-template-columns:repeat(4,1fr);gap:2px 6px}
+.books label{white-space:nowrap}
+.row{display:flex;flex-wrap:wrap;gap:6px;align-items:center;margin:4px 0}
+.slot{display:grid;grid-template-columns:28px 1fr auto;gap:2px 6px;padding:6px 4px;border-bottom:1px solid var(--line)}
+.slot .no{color:var(--sub);text-align:right;padding-top:3px}
+.slot select{width:100%}
+.slot .desc{grid-column:2/4;font-size:12px;color:#cfd6d0}
+.slot .bd{grid-column:2/4}
+.slot.over{background:rgba(224,112,112,.08)}
+.ops{white-space:nowrap}
+.b{display:inline-block;font-size:11px;padding:0 6px;border-radius:3px;border:1px solid;margin:1px 2px 1px 0;line-height:1.6}
+.b.ok{color:var(--ac);border-color:var(--ac)}
+.b.ng,.b.bad{color:var(--ng);border-color:var(--ng)}
+.b.warn,.b.lack{color:var(--warn);border-color:var(--warn)}
+.b.info{color:var(--info);border-color:var(--info)}
+.b.act{color:#d0b888;border-color:#8a6d33}
+.b.pas{color:#a8c4cc;border-color:#3d5a62}
+.notes div{font-size:12px;margin:2px 0}
+#filters{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:8px}
+#filters input[type=search]{flex:1 1 160px;min-width:120px}
+#list-wrap{max-height:calc(100vh - 170px);overflow:auto;border:1px solid var(--line);border-radius:6px}
+@media(max-width:1300px){#list-wrap{max-height:none}}
+#list td,#list th{padding:4px 6px;border-bottom:1px solid #333a35;vertical-align:top;font-size:13px}
+#list th{position:sticky;top:0;background:#121412;text-align:left;z-index:1;white-space:nowrap}
+#list tr.gh td{background:#1f2a22;color:var(--ac);font-weight:bold;font-size:12px}
+#list tr.ok td.nm{color:#fff}
+#list tr.ng td{color:#8b928c}
+#list tr.ng td.st{color:inherit}
+#list tr.slotted td.nm::after{content:" ●";color:var(--ac)}
+#list td.nm{white-space:nowrap;font-weight:bold}
+#list td.cd,#list td.rq{white-space:nowrap;font-size:12px}
+#list td:last-child{white-space:nowrap}
+#list td.ef{min-width:14em}
+#list td.st .b{white-space:nowrap}
+.star{background:none;border:none;color:#777;padding:0 2px;font-size:15px}
+.star.on{color:#ffcc66}
+details summary{cursor:pointer;color:var(--sub);font-size:12px}
+.toast{position:fixed;right:16px;bottom:16px;background:#000c;color:#fff;padding:8px 14px;border-radius:6px;z-index:9;display:none}
+textarea{width:100%;height:120px;background:#151816;color:#eee;border:1px solid #555;border-radius:4px;font:12px monospace}
+</style>
+</head>
+<body>
+<header>
+  <h1>Leciel Arcadia ビルドシミュレータ</h1>
+  <span class="meta" id="data-info"></span>
+</header>
+<main>
+<!-- ===== 左：入力 ===== -->
+<section id="left-col">
+  <div class="card">
+    <h2>基本</h2>
+    <label class="f">役割
+      <select id="in-role"><option>TANK</option><option>DPS</option><option>HEAL</option><option>SUP</option></select></label>
+    <label class="f">レベル <select id="in-lv"></select></label>
+    <label class="f">使用可能STP <input type="number" id="in-stp" min="0" max="99999"></label>
+    <div class="sumrow" style="margin-top:6px"><span>残りSTP</span><span class="big" id="out-remain"></span></div>
+    <div class="muted" id="out-used"></div>
+  </div>
+
+  <div class="card">
+    <h2>能力値 <small>1上昇＝3STP</small></h2>
+    <table id="stat-tbl"><tbody id="stat-body"></tbody></table>
+    <label class="f" style="margin-top:8px">スキル枠 追加
+      <select id="in-waku"></select></label>
+    <div class="muted" id="out-waku"></div>
+    <div class="row">
+      <button id="btn-refund">能力値を全部戻す</button>
+      <button id="btn-fill-waku" title="残りSTPで買える分だけ枠を追加">買えるだけ枠追加</button>
+    </div>
+  </div>
+
+  <div class="card">
+    <h2>スキルブック所持</h2>
+    <div class="books" id="books"></div>
+  </div>
+
+  <div class="card">
+    <h2>欲しいスキルから逆算 <small>一覧の☆で指定</small></h2>
+    <div id="wish-out" class="notes"></div>
+  </div>
+
+  <div class="card">
+    <h2>保存・共有</h2>
+    <div class="row"><input id="preset-name" placeholder="ビルド名" style="flex:1"><button id="btn-save">保存</button></div>
+    <div class="row"><select id="preset-sel" style="flex:1"></select><button id="btn-load">読込</button><button id="btn-del">削除</button></div>
+    <div class="row">
+      <button class="pri" id="btn-code" title="役割・Lv・STP・能力値・枠・ブック・スキル設定を漢字十数文字にします（☆は含みません）">ビルドコードをコピー</button>
+      <button id="btn-url">共有URLをコピー</button>
+    </div>
+    <div class="row"><input id="code-in" placeholder="ビルドコード or 共有URLを貼り付け" style="flex:1"><button id="btn-code-load">読込</button></div>
+    <div class="row">
+      <button id="btn-text">テキストでコピー</button>
+      <button id="btn-reset">初期化</button>
+    </div>
+    <div class="muted" id="code-preview"></div>
+    <details><summary>テキストを確認</summary><textarea id="export-area" readonly></textarea></details>
+  </div>
+
+  <div class="card">
+    <h2>スキルデータ</h2>
+    <div id="data-status" class="notes"></div>
+    <div class="row">
+      <button id="btn-refresh" title="連携スクリプト経由でゲームのスキル一覧を今すぐ取得">今すぐ再取得</button>
+      <button id="btn-csv">CSVで保存</button>
+      <button id="btn-data-reset">内蔵データに戻す</button>
+    </div>
+    <div class="row"><input type="file" id="data-file" accept=".csv,.htm,.html,.txt,.tsv"></div>
+    <details><summary>データ更新の仕組み</summary>
+      <div class="muted">
+        <b>Web配信時（GitHub Pages等）</b>：HTMLと同じ場所の <code>skills.csv</code> を開くたびに読み直します。CSVを差し替えてpushするだけで全員に反映されます（GitHub Pagesはキャッシュの都合で最大10分程度遅れることがあります）。<br>
+        <b>ローカルで開いた時</b>：前回読んだデータ（キャッシュ）か内蔵データを使います。上の欄から <code>skills.csv</code> やスキル一覧ページを保存したHTMLを読み込めば差し替えられます。連携スクリプト（LA ビルドシミュ スキル取得.user.js）を入れていれば、6:00／18:00にゲームから自動取得します。<br>
+        CSV形式：<code>スキル名,使用条件,取得条件,効果</code>（1行目は見出し、Excelでそのまま編集可）
+      </div>
+    </details>
+  </div>
+
+  <details class="card"><summary>使い方・前提</summary>
+    <div class="muted">
+      ・使用可能STPは「能力値・枠に振る前」の総量を入れてください（ゲーム画面の残りSTP＋既に振った分）。<br>
+      ・取得判定：単系統＝その能力値が閾値以上、複系統＝両方が閾値以上、役割スキル＝役割一致かつキャラLv以上、スキルブック＝所持（＋役割指定があれば一致）。<br>
+      ・レベルによる基礎ステータス上昇や役割補正は非公開のため扱っていません。<br>
+      ・「到達不能」判定：アクティブは上から順に判定されるため、上に「SLvN以上/通常時」があると、それ以上のSLvを要するアクティブは発動しません。<br>
+      ・状態はこのブラウザに自動保存されます。
+    </div>
+  </details>
+</section>
+
+<!-- ===== 中：スキル枠 ===== -->
+<section id="slot-col">
+  <div class="card">
+    <h2><span>スキル設定 <small id="slot-count"></small></span>
+      <span><button class="sm" id="btn-autosort" title="ゲームの「自動並べ替え」と同じ順序">自動並べ替え</button>
+      <button class="sm" id="btn-clear-slots">全消去</button></span></h2>
+    <div id="slots"></div>
+    <div id="slot-notes" class="notes" style="margin-top:8px"></div>
+  </div>
+</section>
+
+<!-- ===== 右：スキル一覧 ===== -->
+<section id="list-col">
+  <div class="card">
+    <h2>スキル一覧 <small id="list-count"></small></h2>
+    <div id="filters">
+      <input type="search" id="f-q" placeholder="名前・条件・効果で検索">
+      <select id="f-mode">
+        <option value="">すべて</option>
+        <option value="ok" selected>取得可能のみ</option>
+        <option value="afford">残りSTPで取得可</option>
+        <option value="ng">未取得のみ</option>
+        <option value="wish">☆のみ</option>
+      </select>
+      <select id="f-type"><option value="">種別</option><option value="active">アクティブ</option><option value="passive">パッシブ</option></select>
+      <select id="f-trig"><option value="">発動条件</option></select>
+      <select id="f-group"><option value="">区分</option></select>
+    </div>
+    <div id="list-wrap">
+      <table id="list">
+        <thead><tr><th>状態</th><th>スキル名</th><th>使用条件</th><th>取得条件</th><th>効果</th><th></th></tr></thead>
+        <tbody id="list-body"></tbody>
+      </table>
+    </div>
+  </div>
+</section>
+</main>
+<div class="toast" id="toast"></div>
+
+<script type="text/plain" id="skill-data" data-built="2026-10-21T12:58:30.261100+00:00">
+スキル名,使用条件,取得条件,効果
+ブレイク,SLv0以上 / 通常時,基本スキル,[敵]攻撃
+インパクト,SLv1以上 / 通常時,基本スキル,[敵]攻撃
+リジェクト,SLv2以上 / 通常時,基本スキル,[敵]攻撃
+フェイタリティ,SLv3以上 / 通常時,基本スキル,[敵]攻撃
+ダブルスタブ,SLv1以上 / 通常時,基本スキル,[敵2]攻撃
+トライブレイク,SLv2以上 / 通常時,基本スキル,[敵3]攻撃
+クァルトゥム,SLv3以上 / 通常時,基本スキル,[敵2/2回]攻撃
+ヒール,SLv0以上 / 通常時,基本スキル,[弱味]回復
+キュア,SLv1以上 / 通常時,基本スキル,[弱味]回復
+デュアルヒール,SLv2以上 / 通常時,基本スキル,[弱味/2回]回復
+トリプルヒール,SLv3以上 / 通常時,基本スキル,[弱味/3回]回復
+シックネス,SLv0以上 / 通常時,基本スキル,[敵/2回]悪性変調
+インフェクト,SLv1以上 / 通常時,基本スキル,[敵/3回]悪性変調
+カオティック,SLv2以上 / 通常時,基本スキル,[敵/4回]悪性変調
+アムレート,SLv0以上 / 通常時,基本スキル,[乱味/2回]良性変調
+ブレッシング,SLv1以上 / 通常時,基本スキル,[乱味/3回]良性変調
+セレスティアル,SLv2以上 / 通常時,基本スキル,[乱味/4回]良性変調
+ノヴェーナ,SLv1以上 / 通常時,基本スキル,[敵/2回]悪性変調+[乱味/2回]良性変調
+マジェスティック,SLv2以上 / 通常時,基本スキル,[敵/3回]悪性変調+[乱味/3回]良性変調
+モニュメンタム,SLv3以上 / 通常時,基本スキル,[敵/4回]悪性変調+[乱味/4回]良性変調
+太陽,戦闘開始時,基本スキル,[自]MHP増＆HATE増
+月花,戦闘開始時,基本スキル,[自]MHP増＆HATE減
+ブロッキング,被攻撃前,TANK・LV 1以上,[自]次被ダメ減＆祝福
+ウォール,SLv0以上 / 通常時,TANK・LV 1以上,[味全]守増でなければ守増+[自]良性変調
+グアルダ,SLv0以上 / 通常時,TANK・LV 1以上,[自]保護+[猛敵2]攻減
+フォルトレス,ターン開始時,TANK・LV 2以上,[自]HATE増+[堅味2]祝福
+ミュール,SLv1以上 / 通常時,TANK・LV 2以上,[味全]守増でなければ守増+[味3]良性変調
+バリプラス,ターン終了前,TANK・LV 3以上,[味全]守増なら祝福+[乱味]守増でなければ加護
+エスクード,SLv1以上 / 通常時,TANK・LV 3以上,[自]保護+[猛敵2]攻減＆麻痺
+活気,戦闘開始時,TANK・LV 4以上,[自]DEF増+[味全]MHP増
+シャットアウト,SLv2以上 / 通常時,TANK・LV 4以上,[味全]守増＆良性変調
+ジダール,SLv2以上 / 通常時,TANK・LV 5以上,[自]保護＆守増+[猛敵2]攻減＆麻痺
+テンボック,自分行動前,TANK・LV 5以上,[自]保護+[弱味3]保護なら治癒
+アサルトガード,被攻撃前,TANK・LV 6以上,[猛敵]次与ダメ減＆麻痺
+ネメア,SLv0以上 / 通常時,TANK・LV 6以上,[弱味3]HPが99%以下なら治癒+[自]次被ダメ減
+パシュート,与ダメ後,DPS・LV 1以上,[敵]★攻撃＆次被ダメ増
+ディセクト,SLv0以上 / 通常時,DPS・LV 1以上,[弱敵]痛撃＆凍結
+ディバイド,SLv0以上 / 通常時,DPS・LV 1以上,[敵]疾撃+[敵]反撃
+リッパー,SLv1以上 / 通常時,DPS・LV 2以上,[弱敵]★痛撃＆凍結
+ルプトゥラ,SLv1以上 / 通常時,DPS・LV 2以上,[敵]★疾撃+[敵]★反撃
+ダウンビート,自分行動前,DPS・LV 3以上,[乱敵/3回]★粗雑攻撃＆守減
+トライシュート,SLv2以上 / 通常時,DPS・LV 3以上,[敵]★疾撃+[敵]★反撃+[弱敵]★攻撃
+闘気,戦闘開始時,DPS・LV 4以上,[自]ATK増＆MHP増
+ペインリッパー,SLv2以上 / 通常時,DPS・LV 4以上,[敵/2回]★攻撃＆猛毒+[弱敵]★痛撃＆凍結
+オールブレイク,ターン開始時,DPS・LV 5以上,[敵全]★攻撃
+カラガー,与ダメ後,DPS・LV 5以上,[敵]速減＆★攻撃
+セニエ,ターン終了前,DPS・LV 6以上,[敵]守減＆★攻撃
+クラック,SLv0以上 / 通常時,DPS・LV 6以上,[敵]攻撃＆猛毒
+ルネ,与回復後,HEAL・LV 1以上,[弱味]★回復
+サナーレ,SLv0以上 / 通常時,HEAL・LV 1以上,[弱味]回復＆加護
+レスタ,SLv0以上 / 通常時,HEAL・LV 1以上,[弱味]HPが50%以下なら回復+[弱味]回復
+リサナーレ,SLv1以上 / 通常時,HEAL・LV 2以上,[弱味2]★回復＆加護
+ゾーエ,SLv0以上 / 味方重傷時,HEAL・LV 2以上,[弱味]HPが25%以下なら★回復＆治癒+[弱味]★回復
+プリフィケア,ターン開始時,HEAL・LV 3以上,[弱味]★回復＆保護
+レストア,SLv1以上 / 通常時,HEAL・LV 3以上,[弱味]HPが50%以下なら★回復+[弱味]★回復
+神気,戦闘開始時,HEAL・LV 4以上,[自]MND増＆MHP増
+サナトリウム,SLv2以上 / 通常時,HEAL・LV 4以上,[弱味/5回]★回復＆良性変調
+レスタウラーレ,SLv2以上 / 通常時,HEAL・LV 5以上,[弱味]HPが50%以下なら★回復＆治癒+[弱味2]★回復＆加護
+リバイブ,ターン終了前,HEAL・LV 5以上,[弱味]HPが1%以下なら★回復+[弱味]★回復
+イルミナ,SLv0以上 / 通常時,HEAL・LV 6以上,[弱味2]回復+[弱味2]HPが100%以上なら祝福
+ヒーリング,自分行動前,HEAL・LV 6以上,[弱味]★回復＆治癒
+ゴスペル,ターン開始時,SUP・LV 1以上,[癒味]祝福＆速増
+シール,SLv0以上 / 通常時,SUP・LV 1以上,[猛敵]呪縛＆速減
+ブルカット,SLv0以上 / 通常時,SUP・LV 1以上,[猛味]攻増+[癒味]祝福
+サプレッション,SLv1以上 / 通常時,SUP・LV 2以上,[猛敵]悪性変調＆攻減+[癒敵]呪縛
+モルバス,ターン開始時,SUP・LV 2以上,[堅敵2]守減＆阻害
+グラーティア,SLv1以上 / 通常時,SUP・LV 3以上,[猛味]良性変調＆攻増+[癒味]祝福
+バインド,ターン開始時,SUP・LV 3以上,[猛敵2]麻痺＆攻減
+霊気,戦闘開始時,SUP・LV 4以上,[自]LUK増＆MHP増
+グラレッション,SLv2以上 / 通常時,SUP・LV 4以上,[味全]良性変調+[猛味]攻増
+ブースト,自分行動前,SUP・LV 5以上,[猛味2]祝福＆速増
+ディスコルディア,SLv2以上 / 通常時,SUP・LV 5以上,[敵全]悪性変調+[猛敵]攻減
+ファウダー,SLv0以上 / 通常時,SUP・LV 6以上,[乱味]良性変調+[乱敵]悪性変調
+テラー,自分行動前,SUP・LV 6以上,[乱敵/2回]悪性変調＆阻害
+猛攻,戦闘開始時,攻撃 5以上,[自]ATK増＆祝福
+アグレ,SLv0以上 / 9行動毎,攻撃 5以上,[自]ATK増＆保護
+クレセント,SLv0以上 / 5行動毎,攻撃 10以上,[自]攻増+[敵]★攻撃
+ブレイクスルー,ターン開始時,攻撃 10以上,[自]攻増+[弱敵2]守減
+ハイブレイク,SLv0以上 / 4行動毎,攻撃 15以上,[自]祝福+[敵]★攻撃
+クロスカット,SLv0以上 / 7行動毎,攻撃 20以上,[敵3/2回]★攻撃＆次被ダメ増
+ストレンジア,自分行動前,攻撃 25以上,[自]祝福+[敵]★攻撃
+ブレイジング,SLv0以上 / 9行動毎,攻撃 30以上,[自]ATK増+[敵/2回]★攻撃
+エスカレイト,自分行動前,攻撃 35以上,[自]ATK増＆祝福
+アグニストラ,SLv1以上 / 4行動毎,攻撃 40以上,[敵2/2回]★攻撃＆次被ダメ増
+グラキエス,与ダメ後,攻撃 45以上,[敵]★攻撃+[自]攻増＆次与ダメ増
+ニルヴァーナ,SLv0以上 / 11行動毎,攻撃 50以上,[敵/3回]★攻撃+[自]ATK増
+コンデンス,ターン終了前,攻撃 60以上,[自]ATK増＆攻増
+クロスブレイカー,SLv1以上 / 7行動毎,攻撃 70以上,[敵3/3回]★攻撃＆次被ダメ増
+インセグイレ,与ダメ後,攻撃 80以上,[敵]呪縛＆速減＆守減
+カタストロフ,SLv0以上 / 13行動毎,攻撃 90以上,[敵]次被ダメ増＆★攻撃
+オーバードライブ,SLv0以上 / 20行動目,攻撃 100以上,[自]ATK増＆祝福＆連続増
+瞬足,戦闘開始時,敏捷 5以上,[自]AGI増＆加護
+レヴァ,SLv0以上 / 9行動毎,敏捷 5以上,[自]AGI増＆保護
+フルスピード,SLv0以上 / 5行動毎,敏捷 10以上,[自]連続増＆速増＆AGI増
+リワインド,ターン開始時,敏捷 10以上,[自]速増+[乱敵2]速減
+ユニゾン,SLv0以上 / 4行動毎,敏捷 15以上,[味全]速増＆連続増
+グラドゥス,回避時,敏捷 20以上,[味全]平穏でなければ平穏+[乱味]良性変調
+アクディセル,SLv0以上 / 7行動毎,敏捷 25以上,[味全]速増＆加護＆連続増
+ステップアップ,SLv0以上 / 9行動毎,敏捷 30以上,[自]AGI増+[味全]速増＆連続増
+フリミネオ,自分行動前,敏捷 35以上,[自]AGI増＆連続増
+シルファニー,SLv1以上 / 4行動毎,敏捷 40以上,[味全]連続増＆速増＆加護
+フロース,回避時,敏捷 45以上,[乱敵2]悪性変調+[乱味2]良性変調
+ハーモナイズ,SLv0以上 / 11行動毎,敏捷 50以上,[味全]平穏＆速増＆連続増
+ヘイスティ,ターン終了前,敏捷 60以上,[自]AGI増＆速増
+フルアクセル,SLv1以上 / 7行動毎,敏捷 70以上,[味全]速増＆加護＆連続増+[敵全]麻痺
+テンポアップ,自分行動前,敏捷 80以上,[自]良性変調+[乱味2]良性変調
+デミラージュ,SLv0以上 / 13行動毎,敏捷 90以上,[味全]連続増＆加護+[敵全]連続減＆麻痺
+フェイズシフト,SLv0以上 / 20行動目,敏捷 100以上,[自]AGI増＆加護＆連続増
+集中,戦闘開始時,器用 5以上,[自]DEX増＆祝福
+ルーヴ,SLv0以上 / 9行動毎,器用 5以上,[自]DEX増＆保護
+エンハンス,SLv0以上 / 4行動毎,器用 10以上,[自]次与ダメ増＆祝福
+フォーカス,ターン開始時,器用 10以上,[自]祝福+[弱敵2]次被ダメ増
+ハイスピアー,SLv0以上 / 5行動毎,器用 15以上,[自]攻増+[敵]★痛撃
+ベアトゥス,与クリティカル前,器用 20以上,[敵全]呪縛でなければ呪縛+[弱敵]呪縛
+アサルトシュート,SLv0以上 / 7行動毎,器用 25以上,[敵全]次被ダメ増+[敵2]★痛撃
+ピンポイント,SLv0以上 / 9行動毎,器用 30以上,[自]DEX増+[敵]★痛撃
+モルタレア,自分行動前,器用 35以上,[自]DEX増＆攻増
+キャスリング,SLv1以上 / 5行動毎,器用 40以上,[敵]次被ダメ増＆速減＆★痛撃
+アエスタス,与ダメ後,器用 45以上,[弱敵]★痛撃+[乱味2]祝福
+セルヴァナス,SLv0以上 / 11行動毎,器用 50以上,[自]祝福+[弱敵3]★痛撃+[自]DEX増
+モノマニア,ターン終了前,器用 60以上,[自]DEX増＆祝福
+アサルトレイン,SLv1以上 / 7行動毎,器用 70以上,[敵全]次被ダメ増+[敵2/2回]★痛撃
+デクスタリティ,自分行動前,器用 80以上,[自]良性変調+[敵]★痛撃
+ラッキーセブン,SLv0以上 / 13行動毎,器用 90以上,[敵/7回]★痛撃
+コンセントレイト,SLv0以上 / 20行動目,器用 100以上,[自]DEX増＆祝福＆連続増
+堅守,戦闘開始時,生命 5以上,[自]DEF増＆加護
+ソルド,SLv0以上 / 9行動毎,生命 5以上,[自]DEF増＆保護
+ワイドシールド,SLv0以上 / 5行動毎,生命 10以上,[味全]次被ダメ減＆祝福＆平穏
+プロテクト,ターン開始時,生命 10以上,[味2]守増+[味全]DEF増
+ディフレクト,SLv0以上 / 7行動毎,生命 15以上,[味全]MHP増＆保護＆治癒
+トゥテーラ,被攻撃後,生命 20以上,[自]祝福＆速増
+シウダデラ,SLv0以上 / 4行動毎,生命 25以上,[味全]次被ダメ減＆守増＆加護
+ディフェンサー,SLv0以上 / 9行動毎,生命 30以上,[自]DEF増+[味全]守増＆保護
+ドゥーロ,自分行動前,生命 35以上,[自]DEF増＆次被ダメ減＆守増
+エルダリオン,SLv1以上 / 4行動毎,生命 40以上,[味全]次被ダメ減＆速増＆祝福
+ラピス,被攻撃前,生命 45以上,[乱敵2]麻痺＆阻害
+レジリエンス,SLv0以上 / 11行動毎,生命 50以上,[味全]治癒＆守増＆保護＆DEF増
+アンブレイカ,ターン終了前,生命 60以上,[自]DEF増＆加護
+ディヴァート,SLv1以上 / 7行動毎,生命 70以上,[味全]次被ダメ減＆MHP増＆保護＆良性変調
+アジュヴァーレ,自分行動前,生命 80以上,[自]良性変調+[乱味2]保護
+ヴァンガード,SLv0以上 / 13行動毎,生命 90以上,[味全]治癒＆守増＆HATE減＆MHP増
+ガーディアン,SLv0以上 / 20行動目,生命 100以上,[自]DEF増＆加護＆連続増
+快癒,戦闘開始時,精神 5以上,[自]MND増＆祝福
+グリム,SLv0以上 / 9行動毎,精神 5以上,[自]MND増＆保護
+ワイドヒール,SLv0以上 / 5行動毎,精神 10以上,[味全]加護＆★回復
+レストレーション,ターン開始時,精神 10以上,[弱味2]治癒＆★回復
+ハイヒール,SLv0以上 / 4行動毎,精神 15以上,[弱味/3回]★回復＆良性変調
+スピリティア,自分行動前,精神 20以上,[自]祝福+[弱味]★回復
+セイクリッド,SLv0以上 / 7行動毎,精神 25以上,[味全]祝福+[弱味/2回]★回復
+ソルネーション,SLv0以上 / 9行動毎,精神 30以上,[自]MND増+[弱味/2回]★回復
+アスティル,自分行動前,精神 35以上,[自]MND増＆攻増
+アブニマーチ,SLv1以上 / 4行動毎,精神 40以上,[弱味2/2回]★回復＆良性変調
+ソラキウム,与回復後,精神 45以上,[乱味]祝福＆平穏＆速増
+インビゴレイト,SLv0以上 / 11行動毎,精神 50以上,[弱味/4回]★回復＆治癒＆保護+[自]MND増
+マインドネス,ターン終了前,精神 60以上,[自]MND増+[乱味]保護
+コンセクレイト,SLv1以上 / 7行動毎,精神 70以上,[味全]祝福＆加護+[弱味/3回]★回復
+ミコー,与回復後,精神 80以上,[弱味]★回復＆ランダム変調
+エリクシル,SLv0以上 / 13行動毎,精神 90以上,[味全]★回復＆祝福＆加護＆平穏
+アクエリア,SLv0以上 / 20行動目,精神 100以上,[自]MND増＆祝福＆連続増
+業運,戦闘開始時,幸運 5以上,[自]LUK増＆加護
+マリス,SLv0以上 / 9行動毎,幸運 5以上,[自]LUK増＆保護
+ノクターン,SLv0以上 / 5行動毎,幸運 10以上,[自]LUK増+[敵3]悪性変調+[乱味2]良性変調
+アンラッキー,ターン開始時,幸運 10以上,[乱敵2]LUK減+[敵/2回]悪性変調
+カオス,SLv0以上 / 4行動毎,幸運 15以上,[敵全/2回]悪性変調
+ゲニウス,ターン終了前,幸運 20以上,[敵全]保護なら悪性変調+[敵]悪性変調
+ヘリテージ,SLv0以上 / 7行動毎,幸運 25以上,[乱味3/2回]良性変調+[敵2/3回]悪性変調＆阻害
+クラウン,SLv0以上 / 9行動毎,幸運 30以上,[自]LUK増+[敵/3回]悪性変調+[乱味3]良性変調
+エクリプス,自分行動前,幸運 35以上,[自]LUK増+[敵]悪性変調
+インテグラル,SLv1以上 / 4行動毎,幸運 40以上,[味全]保護＆良性変調+[敵全]阻害＆悪性変調
+アルカナ,自分行動前,幸運 45以上,[乱味]良性変調+[乱敵2]悪性変調
+エフェメラル,SLv0以上 / 11行動毎,幸運 50以上,[敵全/2回]悪性変調＆阻害+[味全/2回]良性変調
+フォーチュン,ターン終了前,幸運 60以上,[自]LUK増+[乱敵]阻害
+サクセッション,SLv1以上 / 7行動毎,幸運 70以上,[味4/2回]良性変調+[敵4/2回]悪性変調＆阻害
+ピウス,ターン開始時,幸運 80以上,[味全]阻害なら良性変調+[乱味]良性変調
+イスカリオーテ,SLv0以上 / 13行動毎,幸運 90以上,[敵全/4回]悪性変調+[味全/4回]良性変調
+デスティニー,SLv0以上 / 20行動目,幸運 100以上,[自]LUK増＆加護＆連続増
+神速,戦闘開始時,攻撃・敏捷 各5以上,[自]ATK増+[味全]連続増
+ファストアタック,ターン開始時,攻撃・敏捷 各5以上,[敵]★攻撃+[自]連続増
+ヴィテス,回避時,攻撃・敏捷 各10以上,[自]速増+[敵]★疾撃
+カマイタチ,SLv0以上 / 5行動毎,攻撃・敏捷 各15以上,[敵/5回]★疾撃＆守減
+フォスティ,自分行動前,攻撃・敏捷 各20以上,[自]★粗雑攻撃＆連続増+[敵]★疾撃＆速減
+テュポーン,SLv0以上 / 9行動毎,攻撃・敏捷 各25以上,[自]ATK増+[自]速増ならAGI増+[敵]★疾撃
+ダブルキル,SLv0以上 / 3行動毎,攻撃・敏捷 各30以上,[自]★粗雑攻撃＆祝福+[敵]★疾撃
+タコース,回避時,攻撃・敏捷 各35以上,[自]連続増＆平穏＆攻増
+ハリケーン,SLv0以上 / 7行動毎,攻撃・敏捷 各40以上,[敵3/2回]★疾撃＆速減
+モルニヤ,ターン終了前,攻撃・敏捷 各45以上,[自]攻増でなければ攻増＆連続増+[乱味]連続増
+ケレリタス,SLv0以上 / 10行動目,攻撃・敏捷 各50以上,[自]ATK増＆AGI増＆連続増
+果敢,戦闘開始時,攻撃・器用 各5以上,[自]ATK増＆DEX増
+トゥデリッヒ,SLv0以上 / 5行動毎,攻撃・器用 各5以上,[自]祝福+[敵]★痛撃
+エンフォルク,ターン開始時,攻撃・器用 各10以上,[自]攻増でなければ攻増+[敵]★痛撃
+アクィラエ,与クリティカル前,攻撃・器用 各15以上,[味全]祝福でなければ祝福+[自]次与ダメ増
+インクルシオ,ターン終了前,攻撃・器用 各20以上,[自]祝福ならATK増+[敵]呪縛＆次被ダメ増
+ルシオラ,SLv0以上 / 9行動毎,攻撃・器用 各25以上,[自]ATK増+[自]攻増ならDEX増+[敵]★痛撃
+セルタメン,自分行動前,攻撃・器用 各30以上,[弱敵]次被ダメ増＆速減+[自]次与ダメ増＆祝福
+プグヌス,SLv1以上 / 7行動毎,攻撃・器用 各35以上,[自]祝福ならDEX増＆次与ダメ増+[弱敵]★痛撃
+ルブルム,与クリティカル前,攻撃・器用 各40以上,[弱敵3]速減＆悪性変調
+インペトゥス,ターン終了前,攻撃・器用 各45以上,[自]攻増＆次与ダメ増+[弱敵]守減＆次被ダメ増
+イグナヴィア,SLv0以上 / 10行動目,攻撃・器用 各50以上,[自]ATK増＆DEX増＆連続増
+鉄壁,戦闘開始時,攻撃・生命 各5以上,[味全]DEF増＆次被ダメ減+[自]HATE増
+フェアラット,ターン開始時,攻撃・生命 各5以上,[敵]呪縛＆★反撃
+オルカーン,被攻撃前,攻撃・生命 各10以上,[自]祝福+[敵]★反撃
+アングリファー,SLv0以上 / 4行動毎,攻撃・生命 各15以上,[自]攻増でなければ攻増＆守増+[敵]★反撃
+シュトライト,自分行動前,攻撃・生命 各20以上,[乱敵]★反撃＆凍結＆呪縛
+ヘルシャフト,SLv0以上 / 9行動毎,攻撃・生命 各25以上,[自]ATK増+[自]祝福ならDEF増+[敵]★反撃
+シュラーク,SLv0以上 / 7行動毎,攻撃・生命 各30以上,[自]DEF増＆守増+[敵/3回]★反撃＆凍結
+ドルヒブルフ,被攻撃前,攻撃・生命 各35以上,[自]攻増+[乱敵]★攻撃＆次被ダメ増
+ブレヒエン,ターン終了前,攻撃・生命 各40以上,[猛敵]呪縛でなければ呪縛＆次与ダメ減+[自]攻増なら守増＆祝福
+シュライエン,ターン開始時,攻撃・生命 各45以上,[敵全]呪縛なら★反撃＆守減
+ツァプフェン,SLv0以上 / 10行動目,攻撃・生命 各50以上,[自]ATK増＆DEF増＆連続増
+瞑想,戦闘開始時,攻撃・精神 各5以上,[自]ATK増＆MND増
+ヴァジュラ,SLv0以上 / 7行動毎,攻撃・精神 各5以上,[敵]★攻撃＆阻害+[弱味]★回復＆保護
+オーシュタ,SLv1以上 / 通常時,攻撃・精神 各10以上,[敵]★攻撃+[弱味]★回復+[自]保護
+ヤナトラ,与回復後,攻撃・精神 各15以上,[敵]★攻撃＆阻害＆悪性変調
+ロンタン,自分行動前,攻撃・精神 各20以上,[敵]★攻撃+[弱味]★回復
+カウムディア,SLv0以上 / 9行動毎,攻撃・精神 各25以上,[自]ATK増+[自]保護ならMND増+[敵]★攻撃+[弱味]★回復
+サマーディ,与ダメ後,攻撃・精神 各30以上,[弱味]★回復＆保護＆良性変調
+プンニャ,ターン終了前,攻撃・精神 各35以上,[自]保護ならMND増+[自]阻害でなければATK増＆保護
+アクルラマ,SLv0以上 / 5行動毎,攻撃・精神 各40以上,[自]保護＆次与ダメ増+[弱味/2回]★回復＆良性変調
+アティシヤ,ターン開始時,攻撃・精神 各45以上,[自]保護ならATK増+[弱味3]次被ダメ減＆★回復
+ムルガンカ,SLv0以上 / 10行動目,攻撃・精神 各50以上,[自]ATK増＆MND増＆連続増
+好機,戦闘開始時,攻撃・幸運 各5以上,[自]ATK増+[味全]LUK増
+ファターレ,SLv0以上 / 7行動毎,攻撃・幸運 各5以上,[弱敵]★攻撃＆猛毒+[弱敵]対象の悪性変調が7以上なら★痛撃＆凍結
+ペリコーロ,SLv0以上 / 5行動毎,攻撃・幸運 各10以上,[敵2]★攻撃＆猛毒+[弱敵]対象の猛毒が5以上なら★攻撃＆呪縛
+レウシット,ターン開始時,攻撃・幸運 各15以上,[敵全]対象の悪性変調が10以下なら★攻撃＆猛毒
+グロワール,ターン終了前,攻撃・幸運 各20以上,[自]攻増でなければ攻増＆加護+[弱敵2]猛毒
+アンフェール,SLv0以上 / 9行動毎,攻撃・幸運 各25以上,[自]ATK増+[自]加護ならLUK増+[乱敵2]★攻撃＆悪性変調
+ヌヴォラ,ターン開始時,攻撃・幸運 各30以上,[弱敵2]猛毒+[弱敵2]対象の悪性変調が8以上なら★攻撃＆阻害
+クラージュ,SLv1以上 / 通常時,攻撃・幸運 各35以上,[弱敵]★攻撃＆悪性変調+[弱敵]対象の猛毒が5以上なら★攻撃＆阻害
+コシュマール,自分行動前,攻撃・幸運 各40以上,[敵全]阻害でなければ★攻撃＆猛毒＆阻害
+スィエル,ターン終了前,攻撃・幸運 各45以上,[猛味2]加護+[弱敵2]猛毒
+オピュロンス,SLv0以上 / 10行動目,攻撃・幸運 各50以上,[自]ATK増＆LUK増＆連続増
+巧妙,戦闘開始時,敏捷・器用 各5以上,[自]DEX増＆AGI増
+ヴィエント,SLv1以上 / 通常時,敏捷・器用 各5以上,[味全]粗雑良性変調+[自]粗雑良性変調＆連続増
+ラングザム,SLv0以上 / 7行動毎,敏捷・器用 各10以上,[敵全]粗雑悪性変調＆連続減+[味全]粗雑良性変調＆連続増
+シュツルム,自分行動前,敏捷・器用 各15以上,[味全]粗雑良性変調＆連続増+[敵全]対象の連続値が50以上なら連続減
+ブリューテ,ターン終了前,敏捷・器用 各20以上,[味全]対象の連続値が66以下なら連続増+[自]粗雑良性変調＆DEX増
+ファッケル,SLv0以上 / 9行動毎,敏捷・器用 各25以上,[自]DEX増+[自]粗雑良性変調＆AGI増+[敵全]粗雑悪性変調
+バザルト,SLv0以上 / 5行動毎,敏捷・器用 各30以上,[味全/2回]粗雑良性変調+[敵全]粗雑悪性変調＆連続減
+クヴァルム,ターン開始時,敏捷・器用 各35以上,[乱味/3回]粗雑良性変調＆連続増
+エアステス,ターン開始時,敏捷・器用 各40以上,[乱敵/3回]粗雑悪性変調＆麻痺＆速減
+アウスブルフ,SLv0以上 / 4行動毎,敏捷・器用 各45以上,[味全]対象の連続値が66以下なら良性変調＆連続増
+エルドラード,SLv0以上 / 10行動目,敏捷・器用 各50以上,[自]AGI増＆DEX増＆連続増
+機敏,戦闘開始時,敏捷・生命 各5以上,[自]AGI増＆DEF増
+エトワール,被攻撃前,敏捷・生命 各5以上,[自]速増＆次被ダメ減＆連続増
+デニシュ,回避時,敏捷・生命 各10以上,[味全]加護でなければ加護+[自]守増＆AGI増
+アンドルミ,SLv0以上 / 5行動毎,敏捷・生命 各15以上,[自]速増＆守増＆連続増+[味全]保護
+オリゾン,ターン開始時,敏捷・生命 各20以上,[味全]加護なら速増＆保護＆連続増
+ユニヴェール,SLv0以上 / 9行動毎,敏捷・生命 各25以上,[自]AGI増+[自]速増ならDEF増+[味全]加護＆速増
+パレートル,SLv0以上 / 4行動毎,敏捷・生命 各30以上,[味全]加護＆連続増+[味全]対象の連続値が60以上なら速増＆守増
+オトゥール,回避時,敏捷・生命 各35以上,[敵全]麻痺でなければ麻痺+[自]速増＆DEF増
+ラントール,ターン終了前,敏捷・生命 各40以上,[味全]速増なら加護＆連続増+[自]速増
+ディスパレトル,自分行動前,敏捷・生命 各45以上,[敵全]速減でなければ麻痺＆速減+[乱敵2]麻痺
+デリカテス,SLv0以上 / 10行動目,敏捷・生命 各50以上,[自]AGI増＆DEF増＆連続増
+神祇,戦闘開始時,敏捷・精神 各5以上,[自]MND増+[敵全]阻害
+ルミエール,与回復後,敏捷・精神 各5以上,[弱味]治癒＆連続増
+エクレール,自分行動前,敏捷・精神 各10以上,[弱味2]★回復＆速増＆連続増
+デズィル,SLv0以上 / 4行動毎,敏捷・精神 各15以上,[弱味3]治癒＆速増＆★回復
+アイビス,ターン終了前,敏捷・精神 各20以上,[弱味/2回]★回復＆良性変調＆連続増
+ナトゥラエ,SLv0以上 / 9行動毎,敏捷・精神 各25以上,[自]MND増＆連続増+[弱味]★回復＆連続増
+カエルム,自分行動前,敏捷・精神 各30以上,[乱味3]速増＆治癒＆連続増
+イルーミノ,ターン開始時,敏捷・精神 各35以上,[弱味]★回復＆速増+[味全]速増なら治癒＆連続増
+フルグル,SLv0以上 / 7行動毎,敏捷・精神 各40以上,[弱味/3回]★回復＆速増+[味全]治癒なら連続増
+ホルトゥス,ターン終了前,敏捷・精神 各45以上,[弱味3]速増なら治癒+[乱味3]治癒なら速増＆連続増
+ファトゥム,SLv0以上 / 10行動目,敏捷・精神 各50以上,[自]AGI増＆MND増＆連続増
+歩先,戦闘開始時,敏捷・幸運 各5以上,[自]AGI増+[自]LUK増
+ピノワール,ターン開始時,敏捷・幸運 各5以上,[乱敵]悪性変調+[乱味2]平穏＆連続増
+エグジスト,SLv0以上 / 7行動毎,敏捷・幸運 各10以上,[味全]速増＆平穏+[敵全]速減＆阻害
+エンライト,自分行動前,敏捷・幸運 各15以上,[乱敵2]速減+[乱味2]良性変調
+アナーケ,ターン終了前,敏捷・幸運 各20以上,[敵全]速減なら悪性変調+[敵3]速減でなければ速減
+ラナウェイ,SLv0以上 / 9行動毎,敏捷・幸運 各25以上,[自]LUK増+[自]速増ならAGI増+[乱敵/3回]速減＆悪性変調
+エスカペイド,SLv1以上 / 通常時,敏捷・幸運 各30以上,[敵全]速減なら悪性変調＆阻害
+カエノメレス,SLv0以上 / 5行動毎,敏捷・幸運 各35以上,[弱味3]良性変調＆連続増+[敵/3回]悪性変調
+スタディオン,ターン開始時,敏捷・幸運 各40以上,[自]速増+[味全]速増なら平穏＆連続増
+ランビリーゾ,SLv0以上 / 4行動毎,敏捷・幸運 各45以上,[敵全]凍結＆速減
+ファレノプシス,SLv0以上 / 10行動目,敏捷・幸運 各50以上,[自]AGI増＆LUK増＆連続増
+地久,戦闘開始時,器用・生命 各5以上,[自]DEX増+[味全]MHP増
+レソリュート,自分行動前,器用・生命 各5以上,[味全]粗雑良性変調＆次被ダメ減
+ナルサック,SLv0以上 / 4行動毎,器用・生命 各10以上,[味全]粗雑良性変調＆治癒＆MHP増
+キクタアルク,ターン開始時,器用・生命 各15以上,[味全]粗雑良性変調＆MHP増
+マッサリア,自分行動前,器用・生命 各20以上,[味全]粗雑良性変調＆保護
+コリント,SLv0以上 / 9行動毎,器用・生命 各25以上,[自]DEX増+[自]治癒ならDEF増+[味全]粗雑良性変調＆MHP増
+ニカイア,SLv0以上 / 5行動毎,器用・生命 各30以上,[味全/2回]粗雑良性変調＆次被ダメ減＆保護
+カルナック,ターン終了前,器用・生命 各35以上,[味全]粗雑良性変調＆MHP増
+デルフォイ,SLv0以上 / 7行動毎,器用・生命 各40以上,[味全]MHP増＆治癒+[敵全]粗雑悪性変調＆麻痺
+アテーナイ,ターン開始時,器用・生命 各45以上,[味全]粗雑悪性変調＆保護＆良性変調＆MHP増
+タレントゥム,SLv0以上 / 10行動目,器用・生命 各50以上,[自]DEX増＆DEF増＆連続増
+処置,戦闘開始時,器用・精神 各5以上,[自]DEX増＆MND増
+ショックヒール,SLv0以上 / 味方重傷時,器用・精神 各5以上,[弱味/2回]粗雑攻撃＆★回復＆平穏
+アバランチ,自分行動前,器用・精神 各10以上,[弱味]粗雑攻撃＆★回復＆祝福
+コラプス,SLv0以上 / 5行動毎,器用・精神 各15以上,[味全/2回]粗雑良性変調＆★回復
+デミライズ,ターン開始時,器用・精神 各20以上,[弱味/2回]粗雑良性変調＆★回復+[乱敵]粗雑悪性変調
+プリシピー,SLv0以上 / 9行動毎,器用・精神 各25以上,[自]MND増＆DEX増+[弱味/3回]粗雑攻撃＆★回復
+ピンナヌン,与回復後,器用・精神 各30以上,[弱味]粗雑良性変調＆★回復+[乱敵]粗雑悪性変調
+トントードン,SLv0以上 / 7行動毎,器用・精神 各35以上,[味全/2回]粗雑攻撃＆★回復＆良性変調+[弱味]★回復
+サルファー,ターン終了前,器用・精神 各40以上,[弱味2]粗雑良性変調＆治癒＆★回復+[乱敵]粗雑悪性変調
+メリエンダ,SLv0以上 / 4行動毎,器用・精神 各45以上,[味全]粗雑良性変調＆粗雑良性変調+[弱味/2回]★回復
+フルミール,SLv0以上 / 10行動目,器用・精神 各50以上,[自]DEX増＆MND増＆連続増
+天理,戦闘開始時,器用・幸運 各5以上,[自]DEX増+[味全]LUK増
+インヒューズ,ターン終了前,器用・幸運 各5以上,[乱味]粗雑良性変調+[乱敵]粗雑悪性変調＆阻害
+バクスティラ,SLv1以上 / 通常時,器用・幸運 各10以上,[弱敵]★痛撃＆阻害+[弱敵2]粗雑悪性変調＆阻害
+カティラ,与クリティカル前,器用・幸運 各15以上,[弱敵]次被ダメ増＆守減＆呪縛
+キレスタール,ターン開始時,器用・幸運 各20以上,[弱味2]粗雑良性変調＆治癒+[弱敵2]粗雑悪性変調＆阻害
+ワミード,SLv0以上 / 9行動毎,器用・幸運 各25以上,[自]LUK増＆DEX増+[弱敵2/2回]粗雑悪性変調＆呪縛
+マルジャーン,SLv0以上 / 5行動毎,器用・幸運 各30以上,[弱敵]次被ダメ増+[弱味2]痛撃＆治癒＆良性変調
+ダルフィーン,SLv0以上 / 4行動毎,器用・幸運 各35以上,[弱敵]守減+[弱味3]痛撃＆良性変調＆保護
+タフリール,与クリティカル前,器用・幸運 各40以上,[弱味]治癒＆祝福+[敵]猛毒＆呪縛
+サラターン,自分行動前,器用・幸運 各45以上,[味]痛撃＆保護+[弱敵]粗雑悪性変調＆阻害
+アイムラクン,SLv0以上 / 10行動目,器用・幸運 各50以上,[自]DEX増＆LUK増＆連続増
+防備,戦闘開始時,生命・精神 各5以上,[味全]DEF増＆保護
+オートヒール,被攻撃後,生命・精神 各5以上,[自]★回復+[弱味]治癒
+ワイドケア,SLv0以上 / 7行動毎,生命・精神 各10以上,[味全]守増＆良性変調+[弱味/2回]★回復＆治癒
+エクスキュア,SLv0以上 / 味方重傷時,生命・精神 各15以上,[弱味]治癒＆守増＆★回復
+グレイス,ターン終了前,生命・精神 各20以上,[弱味]★回復＆守増＆治癒
+スヴェート,SLv0以上 / 9行動毎,生命・精神 各25以上,[自]MND増+[自]守増ならDEF増+[弱味]★回復＆次被ダメ減
+ピュリファイ,SLv0以上 / 4行動毎,生命・精神 各30以上,[味全]治癒＆保護+[弱味]★回復
+ルクス,ターン開始時,生命・精神 各35以上,[弱味2]治癒＆守増+[弱味]★回復
+ストラール,SLv0以上 / 5行動毎,生命・精神 各40以上,[弱味/2回]★回復＆守増＆保護
+エストレラ,被攻撃前,生命・精神 各45以上,[自]治癒＆守増＆保護
+ディアデマ,SLv0以上 / 10行動目,生命・精神 各50以上,[自]DEF増＆MND増＆連続増
+守護,戦闘開始時,生命・幸運 各5以上,[味全]DEF増＆LUK増
+リアクト,ターン終了前,生命・幸運 各5以上,[乱味2]保護+[堅味]守増
+アドバンス,SLv0以上 / 7行動毎,生命・幸運 各10以上,[敵全]呪縛＆阻害+[味全]祝福＆保護
+リバーサル,ターン開始時,生命・幸運 各15以上,[乱敵]悪性変調＆阻害+[堅味]治癒＆保護
+インソレント,自分行動前,生命・幸運 各20以上,[堅味2]保護+[猛敵]呪縛＆阻害
+ヴィンデクタ,SLv0以上 / 9行動毎,生命・幸運 各25以上,[自]LUK増+[自]保護ならDEF増+[敵全]悪性変調＆阻害
+リベリオール,SLv0以上 / 4行動毎,生命・幸運 各30以上,[味全/2回]良性変調+[味全]保護
+コントラリー,ターン開始時,生命・幸運 各35以上,[味全]保護なら良性変調+[敵全]阻害なら悪性変調
+セディシオン,SLv0以上 / 5行動毎,生命・幸運 各40以上,[乱味3/2回]良性変調＆保護+[敵/2回]悪性変調
+セラヴィー,ターン開始時,生命・幸運 各45以上,[乱敵2]阻害+[乱味2]保護
+アプライジン,SLv0以上 / 10行動目,生命・幸運 各50以上,[自]DEF増＆LUK増＆連続増
+祈祷,戦闘開始時,精神・幸運 各5以上,[自]MND増+[味全]LUK増
+チェインヒール,与回復後,精神・幸運 各5以上,[弱味]★回復＆治癒
+シクレツァー,SLv0以上 / 4行動毎,精神・幸運 各10以上,[味全]★回復＆保護＆良性変調
+セーフティ,SLv0以上 / 通常時,精神・幸運 各15以上,[弱味2]良性変調＆回復
+クマーラ,ターン終了前,精神・幸運 各20以上,[乱味2]★回復＆良性変調+[自]保護
+クラノス,SLv0以上 / 9行動毎,精神・幸運 各25以上,[自]MND増+[自]保護ならLUK増+[弱味]★回復＆保護
+バリアント,ターン開始時,精神・幸運 各30以上,[弱味/2回]★回復＆治癒＆良性変調
+オラシオン,SLv0以上 / 7行動毎,精神・幸運 各35以上,[味全]★回復＆保護＆良性変調
+セグリダ,SLv0以上 / 味方重傷時,精神・幸運 各40以上,[弱味/2回]★回復＆保護＆良性変調
+プレギエラ,自分行動前,精神・幸運 各45以上,[弱味3]★回復＆治癒
+オーラティオ,SLv0以上 / 10行動目,精神・幸運 各50以上,[自]MND増＆LUK増＆連続増
+ヴェノム,ターン開始時,スキルブック【猛毒】,[敵/2回]猛毒
+ポイズン,ターン終了前,スキルブック【猛毒】,[敵2]猛毒
+ディケイ,戦闘開始時,スキルブック【猛毒】,[敵全]対象の猛毒が7以下なら猛毒
+アンブッシュ,被攻撃後,TANK / スキルブック【猛毒】,[乱敵2]猛毒
+アシッド,与ダメ後,DPS / スキルブック【猛毒】,[乱敵2]猛毒
+バイオ,与回復後,HEAL / スキルブック【猛毒】,[乱敵2]猛毒
+トキシック,自分行動前,SUP / スキルブック【猛毒】,[敵/2回]猛毒
+コールド,ターン開始時,スキルブック【凍結】,[敵/2回]凍結
+グラシア,ターン終了前,スキルブック【凍結】,[敵2]凍結
+フリーズ,戦闘開始時,スキルブック【凍結】,[敵全]対象の凍結が7以下なら凍結
+フロスト,被攻撃後,TANK / スキルブック【凍結】,[乱敵2]凍結
+チルド,与ダメ後,DPS / スキルブック【凍結】,[乱敵2]凍結
+アイシー,与回復後,HEAL / スキルブック【凍結】,[乱敵2]凍結
+スノウドロップ,自分行動前,SUP / スキルブック【凍結】,[敵/2回]凍結
+カーズ,ターン開始時,スキルブック【呪縛】,[敵/2回]呪縛
+フルーフ,ターン終了前,スキルブック【呪縛】,[敵2]呪縛
+ディゾルブ,戦闘開始時,スキルブック【呪縛】,[敵全]対象の呪縛が7以下なら呪縛
+ナフリーン,被攻撃後,TANK / スキルブック【呪縛】,[乱敵2]呪縛
+ラアーナ,与ダメ後,DPS / スキルブック【呪縛】,[乱敵2]呪縛
+ラーネット,与回復後,HEAL / スキルブック【呪縛】,[乱敵2]呪縛
+ネクロ,自分行動前,SUP / スキルブック【呪縛】,[敵/2回]呪縛
+パラライズ,ターン開始時,スキルブック【麻痺】,[敵/2回]麻痺
+ショック,ターン終了前,スキルブック【麻痺】,[敵2]麻痺
+ジャミング,戦闘開始時,スキルブック【麻痺】,[敵全]対象の麻痺が7以下なら麻痺
+スタティック,被攻撃後,TANK / スキルブック【麻痺】,[乱敵2]麻痺
+スタンウェーブ,与ダメ後,DPS / スキルブック【麻痺】,[乱敵2]麻痺
+スイナ,与回復後,HEAL / スキルブック【麻痺】,[乱敵2]麻痺
+レームング,自分行動前,SUP / スキルブック【麻痺】,[敵/2回]麻痺
+エイド,ターン開始時,スキルブック【治癒】,[乱味/2回]治癒
+リカバー,ターン終了前,スキルブック【治癒】,[味2]治癒
+プラヴィア,戦闘開始時,スキルブック【治癒】,[味全]対象の治癒が7以下なら治癒
+トリート,被攻撃後,TANK / スキルブック【治癒】,[乱味2]治癒
+ハイレン,与ダメ後,DPS / スキルブック【治癒】,[乱味2]治癒
+メディカ,与回復後,HEAL / スキルブック【治癒】,[乱味2]治癒
+ライフケア,自分行動前,SUP / スキルブック【治癒】,[乱味/2回]治癒
+カーム,ターン開始時,スキルブック【平穏】,[乱味/2回]平穏
+ピースフル,ターン終了前,スキルブック【平穏】,[味2]平穏
+セニティ,戦闘開始時,スキルブック【平穏】,[味全]対象の平穏が7以下なら平穏
+ルグン,被攻撃後,TANK / スキルブック【平穏】,[乱味2]平穏
+ベルヒゲン,与ダメ後,DPS / スキルブック【平穏】,[乱味2]平穏
+パシフィー,与回復後,HEAL / スキルブック【平穏】,[乱味2]平穏
+テューニ,自分行動前,SUP / スキルブック【平穏】,[乱味/2回]平穏
+ブレス,ターン開始時,スキルブック【祝福】,[乱味/2回]祝福
+オラクル,ターン終了前,スキルブック【祝福】,[味2]祝福
+サバス,戦闘開始時,スキルブック【祝福】,[味全]対象の祝福が7以下なら祝福
+バラカ,被攻撃後,TANK / スキルブック【祝福】,[乱味2]祝福
+アシルワド,与ダメ後,DPS / スキルブック【祝福】,[乱味2]祝福
+シウナス,与回復後,HEAL / スキルブック【祝福】,[乱味2]祝福
+エウロギア,自分行動前,SUP / スキルブック【祝福】,[乱味/2回]祝福
+ディバイン,ターン開始時,スキルブック【加護】,[乱味/2回]加護
+セイント,ターン終了前,スキルブック【加護】,[味2]加護
+エデン,戦闘開始時,スキルブック【加護】,[味全]対象の加護が7以下なら加護
+エイジス,被攻撃後,TANK / スキルブック【加護】,[乱味2]加護
+グローリー,与ダメ後,DPS / スキルブック【加護】,[乱味2]加護
+セラフィー,与回復後,HEAL / スキルブック【加護】,[乱味2]加護
+アーク,自分行動前,SUP / スキルブック【加護】,[乱味/2回]加護
+</script>
+
+<script>
+'use strict';
+const STATS=[['atk','攻撃'],['agi','敏捷'],['dex','器用'],['def','生命'],['mnd','精神'],['luk','幸運']];
+const JA2KEY={};STATS.forEach(([k,j])=>JA2KEY[j]=k);
+const KEY2JA={};STATS.forEach(([k,j])=>KEY2JA[k]=j);
+const ROLES=['TANK','DPS','HEAL','SUP'];
+const BOOKS=['猛毒','凍結','呪縛','麻痺','治癒','平穏','祝福','加護'];
+const WAKU_COST=[35,40,45,50,60,70];
+const BASE_SLOTS=6,MAX_WAKU=6,MAX_SLOTS=12,MAX_LV=99;
+const PASSIVE_ORDER=['戦闘開始時','ターン開始時','ターン終了前','自分行動前','自分行動後','被攻撃前','戦闘離脱前','戦闘離脱後','与回復後','与ダメ後','与クリティカル前','回避時','被攻撃後'];
+const LS_STATE='la-buildsim-state',LS_PRESETS='la-buildsim-presets',LS_CACHE='la-buildsim-skills';
+const MIN_ROWS=50;
+const HOSTED=/^https?:$/.test(location.protocol);
+const SHARE_BASE='https://l1zri4.github.io/LA/'; // ローカルで開いているときの共有URLの行き先 // これ未満の取得結果は壊れているとみなして採用しない
+const SRC_LABEL={builtin:'内蔵データ',game:'ゲームから取得',csv:'skills.csv',file:'ファイル読込'};
+
+const $=s=>document.querySelector(s);
+const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const norm=s=>String(s??'').replace(/\s+/g,' ').trim();
+const int=v=>{const n=parseInt(v,10);return isNaN(n)?0:n};
+const clamp=(v,a,b)=>Math.min(b,Math.max(a,v));
+const ls={get(k){try{return localStorage.getItem(k)}catch(e){return null}},set(k,v){try{localStorage.setItem(k,v)}catch(e){}},del(k){try{localStorage.removeItem(k)}catch(e){}}};
+function toast(m){const t=$('#toast');t.textContent=m;t.style.display='block';clearTimeout(toast.t);toast.t=setTimeout(()=>t.style.display='none',2000)}
+
+/* ---------- データ ---------- */
+function parseReq(r){
+  r=norm(r);let m;
+  if(r==='基本スキル')return{kind:'basic',group:'条件なし'};
+  if(m=r.match(/^(TANK|DPS|HEAL|SUP)・LV ?(\d+)以上$/))return{kind:'role',role:m[1],lv:+m[2],group:m[1]};
+  if(m=r.match(/^(?:(TANK|DPS|HEAL|SUP) ?\/ ?)?スキルブック【(.+?)】$/))return{kind:'book',role:m[1]||null,book:m[2],group:'スキルブック'};
+  if(m=r.match(/^(攻撃|敏捷|器用|生命|精神|幸運) ?(\d+)以上$/))return{kind:'stat',need:{[JA2KEY[m[1]]]:+m[2]},group:m[1]};
+  if(m=r.match(/^(攻撃|敏捷|器用|生命|精神|幸運)・(攻撃|敏捷|器用|生命|精神|幸運) ?各(\d+)以上$/))
+    return{kind:'stat',need:{[JA2KEY[m[1]]]:+m[3],[JA2KEY[m[2]]]:+m[3]},group:m[1]+'-'+m[2]};
+  return{kind:'unknown',group:'その他'};
+}
+function parseCond(c){
+  c=norm(c);const m=c.match(/^SLv(\d+)以上 ?\/ ?(.+)$/);
+  if(!m)return{active:false,trig:c,tag:c};
+  const rest=m[2];let nth=0,per=0,injured=false,always=false,m2;
+  if(m2=rest.match(/^(\d+)行動目$/))nth=+m2[1];
+  else if(m2=rest.match(/^(\d+)行動毎$/))per=+m2[1];
+  else if(rest==='味方重傷時')injured=true;
+  else if(rest==='通常時')always=true;
+  const tag=always?'アクティブ：通常時':per?'アクティブ：行動毎':nth?'アクティブ：行動目':injured?'アクティブ：味方重傷時':'アクティブ：'+rest;
+  return{active:true,slv:+m[1],rest,nth,per,injured,always,tag};
+}
+let SKILLS=[],BY_NAME={},GROUPS=[],BY_HASH={},SALT=0,DATA=null,BRIDGE=false,BRIDGE_MSG='';
+function buildSkills(rows){
+  const seen=new Set();
+  SKILLS=[];BY_NAME={};GROUPS=[];
+  for(const r of rows){
+    const [name,cond,req,eff]=r.map(norm);
+    if(!name||seen.has(name))continue;seen.add(name);
+    const sk={name,cond,reqText:req,eff,req:parseReq(req),c:parseCond(cond)};
+    sk.group=sk.req.group;
+    if(!GROUPS.includes(sk.group))GROUPS.push(sk.group);
+    SKILLS.push(sk);BY_NAME[name]=sk;
+  }
+  // 現データで衝突しないソルトを選ぶ（コードに埋め込むので、後でデータが増えても復元可能）
+  for(SALT=0;SALT<256;SALT++){BY_HASH=hashMap(SALT);if(Object.values(BY_HASH).every(a=>a.length===1))break}
+  if(SALT>255){SALT=0;BY_HASH=hashMap(0)}
+}
+function hashMap(salt){const m={};for(const sk of SKILLS)(m[h16(sk.name,salt)]=m[h16(sk.name,salt)]||[]).push(sk.name);return m}
+function parseCSV(t){
+  const rows=[];let row=[],f='',q=false;
+  for(let i=0;i<t.length;i++){
+    const c=t[i];
+    if(q){if(c==='"'){if(t[i+1]==='"'){f+='"';i++}else q=false}else f+=c}
+    else if(c==='"')q=true;
+    else if(c===','){row.push(f);f=''}
+    else if(c==='\n'||c==='\r'){if(c==='\r'&&t[i+1]==='\n')i++;row.push(f);rows.push(row);row=[];f=''}
+    else f+=c;
+  }
+  if(f||row.length){row.push(f);rows.push(row)}
+  return rows;
+}
+function parseTextData(t){
+  t=String(t).replace(/^﻿/,'');
+  let rows;
+  if(/catalog-data-row/.test(t)){
+    const doc=new DOMParser().parseFromString(t,'text/html');
+    rows=[...doc.querySelectorAll('.catalog-data-row')].map(tr=>[...tr.querySelectorAll('td')].map(td=>td.textContent));
+  }else{
+    const first=t.split(/\r?\n/,1)[0];
+    rows=first.includes('\t')?t.split(/\r?\n/).map(l=>l.split('\t')):first.includes('|')?t.split(/\r?\n/).map(l=>l.split('|')):parseCSV(t);
+  }
+  return rows.map(a=>a.slice(0,4).map(norm)).filter(a=>a.length===4&&a[0]&&a[0]!=='スキル名');
+}
+function toCSV(rows){
+  const q=s=>/[",\r\n]/.test(s)?'"'+s.replace(/"/g,'""')+'"':s;
+  return '﻿'+[['スキル名','使用条件','取得条件','効果'],...rows].map(r=>r.map(q).join(',')).join('\r\n')+'\r\n';
+}
+
+/* ---------- データ取得・キャッシュ（毎日 6:00 / 18:00 JST に更新） ---------- */
+const H12=12*3600e3,OFS=9*3600e3; // 6:00 JST = 21:00 UTC, 18:00 JST = 09:00 UTC
+const lastBoundary=(t=Date.now())=>Math.floor((t-OFS)/H12)*H12+OFS;
+const nextBoundary=(t=Date.now())=>lastBoundary(t)+H12;
+const fmtTime=t=>{const d=new Date(t);return `${d.getMonth()+1}/${d.getDate()} ${String(d.getHours()).padStart(2,'0')}:${String(d.getMinutes()).padStart(2,'0')}`};
+function builtinData(){const el=$('#skill-data');return{rows:parseTextData(el.textContent),at:Date.parse(el.dataset.built)||0,src:'builtin'}}
+function loadData(){
+  const b=builtinData();let c=null;
+  try{c=JSON.parse(ls.get(LS_CACHE))}catch(e){}
+  DATA=(c&&Array.isArray(c.rows)&&c.rows.length>=MIN_ROWS&&c.at>=b.at)?c:b;
+  buildSkills(DATA.rows);
+}
+const needRefresh=()=>!DATA||DATA.src==='builtin'||DATA.at<lastBoundary()||(HOSTED&&DATA.src!=='csv');
+function setData(rows,src,label,quiet){
+  if(!rows||rows.length<MIN_ROWS){if(!quiet)toast(`スキル行が少なすぎるため不採用（${rows?rows.length:0}件）`);return false}
+  const same=DATA&&JSON.stringify(DATA.rows)===JSON.stringify(rows);
+  const before=new Set(SKILLS.map(s=>s.name));
+  DATA={rows,at:Date.now(),src,label:label||''};
+  ls.set(LS_CACHE,JSON.stringify(DATA));
+  if(same){renderDataStatus();if(!quiet)toast('スキル一覧に変更はありません');return true}
+  buildSkills(rows);setupFilters();
+  const after=new Set(SKILLS.map(s=>s.name));
+  const add=[...after].filter(n=>!before.has(n)),del=[...before].filter(n=>!after.has(n));
+  toast(`スキル一覧を更新（${SKILLS.length}件`+(add.length?` / 追加${add.length}`:'')+(del.length?` / 削除${del.length}`:'')+'）');
+  if(add.length)console.info('[LA sim] 追加スキル',add);
+  if(del.length)console.info('[LA sim] 削除スキル',del);
+  renderAll();return true;
+}
+// ExcelでCSV保存するとShift_JISになることがあるので、UTF-8で読めなければShift_JISで読み直す
+function decodeBytes(buf){try{return new TextDecoder('utf-8',{fatal:true}).decode(buf)}catch(e){return new TextDecoder('shift_jis').decode(buf)}}
+const fetchCSV=()=>fetch('skills.csv',{cache:'no-store'}).then(r=>r.ok?r.arrayBuffer():Promise.reject(new Error('HTTP '+r.status))).then(b=>parseTextData(decodeBytes(b)));
+function requestRefresh(force){
+  if(!force&&!needRefresh())return;
+  if(HOSTED){fetchCSV().then(rows=>setData(rows,'csv','',!force)).catch(e=>{BRIDGE_MSG='skills.csv 取得失敗：'+e.message;renderDataStatus()});return}
+  if(BRIDGE){BRIDGE_MSG='取得中…';renderDataStatus();window.postMessage({type:'la-sim:request',force:!!force},'*');return}
+  if(force)toast('連携スクリプトが動いていません（「自動取得の設定」参照）');
+}
+window.addEventListener('message',e=>{
+  const d=e.data;if(!d||typeof d!=='object'||typeof d.type!=='string'||!d.type.startsWith('la-sim:'))return;
+  if(d.type==='la-sim:bridge-ready'){BRIDGE=true;BRIDGE_MSG='';renderDataStatus();if(!HOSTED)window.postMessage({type:'la-sim:request',force:false},'*')} // 配信時は skills.csv が正
+  else if(d.type==='la-sim:skills'&&Array.isArray(d.rows)&&!HOSTED){
+    BRIDGE_MSG='';
+    const rows=d.rows.filter(r=>Array.isArray(r)&&r.length>=4).map(r=>r.slice(0,4).map(norm));
+    const same=DATA&&JSON.stringify(DATA.rows)===JSON.stringify(rows);
+    if(same){DATA.at=Math.max(DATA.at,+d.at||Date.now());DATA.src='game';ls.set(LS_CACHE,JSON.stringify(DATA));renderDataStatus()}
+    else setData(rows,'game');
+  }
+  else if(d.type==='la-sim:error'){BRIDGE_MSG='取得失敗：'+String(d.msg||'');renderDataStatus()}
+});
+function scheduleRefresh(){
+  const wait=nextBoundary()-Date.now()+5000+Math.random()*55000;
+  setTimeout(()=>{requestRefresh(false);scheduleRefresh()},Math.min(wait,2**31-1));
+}
+document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='visible')requestRefresh(false)});
+function renderDataStatus(){
+  if(!DATA)return;
+  const src=SRC_LABEL[DATA.src]||DATA.src;
+  $('#data-info').textContent=`スキル${SKILLS.length}件・${src}（${fmtTime(DATA.at)}）`;
+  $('#data-status').innerHTML=`
+    <div>現在：<b>${esc(src)}</b>${DATA.label?'（'+esc(DATA.label)+'）':''} ${SKILLS.length}件 ／ ${fmtTime(DATA.at)}時点</div>
+    <div>${HOSTED?'配信元：同じ場所の skills.csv（開くたびに読み直し）':`連携スクリプト：${BRIDGE?'<span class="pos">有効</span>':'<span class="muted">未検出</span>'} ／ 次回更新：${fmtTime(nextBoundary())}${needRefresh()?' <span class="b warn">更新待ち</span>':''}`}</div>
+    ${BRIDGE_MSG?`<div class="${/失敗/.test(BRIDGE_MSG)?'neg':''}">${esc(BRIDGE_MSG)}</div>`:''}`;
+}
+
+/* ---------- ビルドコード（短縮共有） ---------- */
+// FNV-1a 32bit → 1..65535。スキル名基準なので一覧の並び替え・追加に強い
+function h16(s,salt=0){let h=(0x811c9dc5^Math.imul(salt,0x9e3779b1))>>>0;for(const ch of s){h^=ch.codePointAt(0);h=Math.imul(h,0x01000193)>>>0}return((h^(h>>>16))&0xffff)%65535+1}
+const B64='ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_';
+function b64e(bytes){let s='',bits=0,v=0;for(const b of bytes){v=(v<<8)|b;bits+=8;while(bits>=6){bits-=6;s+=B64[(v>>bits)&63]}v&=(1<<bits)-1}if(bits)s+=B64[(v<<(6-bits))&63];return s}
+function b64d(s){const out=[];let bits=0,v=0;for(const c of s){const i=B64.indexOf(c);if(i<0)throw new Error('bad char');v=(v<<6)|i;bits+=6;if(bits>=8){bits-=8;out.push((v>>bits)&255)}v&=(1<<bits)-1}return out}
+function decodeBuild(code){
+  const b=b64d(code);let p=0;const rd=()=>{if(p>=b.length)throw new Error('short');return b[p++]};
+  const vi=()=>{let n=0,s=0,x;do{x=rd();n|=(x&127)<<s;s+=7}while(x&128);return n};
+  if(rd()!==2)throw new Error('version');
+  const salt=rd(),map=salt===SALT?BY_HASH:hashMap(salt);
+  const o=defState(),rw=rd();o.role=ROLES[rw>>4]||'SUP';o.waku=rw&15;
+  const bm=rd();o.books=BOOKS.filter((x,i)=>bm&(1<<i));
+  o.lv=vi();o.stp=vi();STATS.forEach(([k])=>o.st[k]=vi());
+  let miss=0;
+  while(p+1<b.length){
+    const h=(rd()<<8)|rd();
+    if(!h){o.slots.push(null);continue}
+    const c=map[h];if(!c){o.slots.push(null);miss++;continue}
+    o.slots.push(c[0]);
+  }
+  const res=sanitize(o);
+  // ハッシュ衝突時は、そのビルドで取得可能な候補を優先
+  res.slots=res.slots.map((n,i)=>{if(!n)return n;const c=map[h16(n,salt)];if(c.length<2)return n;const keep=S;S=res;const ok=c.find(x=>evalSkill(BY_NAME[x]).ok);S=keep;return ok||n});
+  return{state:res,miss};
+}
+/* ---------- ビルドコード v3 ----------
+  ・全項目を「値と基数」の列にし、BigIntで1つの整数に畳み込む（混合基数）
+  ・数値はElias-γ符号（0なら1bit、50で11bit）
+  ・スキルは「スキル名のハッシュ」の下位bビット。b とソルトは、そのビルドで取得可能なスキル同士が
+    衝突しない最小値をビルドごとに探す（完全ハッシュ）。候補が80件なら約10bit/枠
+    → スキル名で引くので、CSVにスキルが追加・並べ替えされても既存コードは壊れない
+  ・最後に漢字1文字＝14bit（U+4E00〜U+8DFF）、URL用は英数62進で文字列化 */
+const KANJI0=0x4E00,KBASE=16384,B62='0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz';
+function packer(){
+  const f=[];
+  const o={
+    put(v,r){if(r<=1)return;if(!(v>=0&&v<r))throw new Error('range');f.push([BigInt(v),BigInt(r)])},
+    gam(v){const x=Math.max(0,v|0)+1,b=31-Math.clz32(x);for(let j=0;j<b;j++)o.put(1,2);o.put(0,2);o.put(x-2**b,2**b)},
+    big(){let N=0n;for(let i=f.length-1;i>=0;i--)N=N*f[i][1]+f[i][0];return N}
+  };return o;
+}
+function unpacker(N){
+  const o={
+    get(r){if(r<=1)return 0;const R=BigInt(r),v=N%R;N/=R;return Number(v)},
+    gam(){let b=0;while(o.get(2)===1)if(++b>24)throw new Error('gam');return 2**b+o.get(2**b)-1},
+    done:()=>N===0n
+  };return o;
+}
+const toDigits=(N,B)=>{const d=[],b=BigInt(B);while(N>0n){d.push(Number(N%b));N/=b}return d};
+const fromDigits=(d,B)=>{let N=0n;const b=BigInt(B);for(let i=d.length-1;i>=0;i--)N=N*b+BigInt(d[i]);return N};
+const usedOf=st=>statPoints(st.st)*3+wakuCost(st.waku);
+function candList(st,all){
+  const keep=S;S=st;
+  try{return SKILLS.filter(sk=>all||evalSkill(sk,st.st).ok).map(s=>s.name).sort()}finally{S=keep}
+}
+function h32(s,salt){ // FNV-1a + murmur3 fmix32
+  let h=(0x811c9dc5^Math.imul(salt+1,0x9e3779b1))>>>0;
+  for(const ch of s){h^=ch.codePointAt(0);h=Math.imul(h,0x01000193)>>>0}
+  h^=h>>>16;h=Math.imul(h,0x85ebca6b)>>>0;h^=h>>>13;h=Math.imul(h,0xc2b2ae35)>>>0;h^=h>>>16;return h>>>0;
+}
+const hb=(s,salt,b)=>h32(s,salt)&((1<<b)-1);
+function perfectHash(names){
+  for(let b=Math.max(4,Math.ceil(Math.log2(names.length+1)));b<=20;b++)
+    for(let salt=0;salt<256;salt++){const seen=new Set();let ok=true;for(const n of names){const v=hb(n,salt,b);if(seen.has(v)){ok=false;break}seen.add(v)}if(ok)return{b,salt}}
+  throw new Error('hash');
+}
+function packBuild(st=S){
+  const P=packer(),n=BASE_SLOTS+st.waku;
+  P.put(1,4);P.put(ROLES.indexOf(st.role),4);P.put(st.waku,MAX_WAKU+1);
+  const bm=BOOKS.reduce((m,x,i)=>st.books.includes(x)?m|(1<<i):m,0);
+  P.put(bm?1:0,2);if(bm)P.put(bm,256);
+  P.gam(st.lv-1);STATS.forEach(([k])=>P.gam(st.st[k]));
+  const r=st.stp-usedOf(st);P.put(r<0?1:0,2);P.gam(Math.abs(r));
+  const sl=st.slots.slice(0,n).map(x=>x&&BY_NAME[x]?x:null);while(sl.length&&!sl[sl.length-1])sl.pop();
+  P.put(sl.length,n+1);
+  if(sl.length){
+    const acq=candList(st,false),all=sl.some(x=>x&&!acq.includes(x)),cand=all?candList(st,true):acq;
+    const{b,salt}=perfectHash(cand);
+    P.put(all?1:0,2);P.put(b-4,17);P.put(salt,256);
+    for(const x of sl)P.put(x?hb(x,salt,b)+1:0,(1<<b)+1);
+  }
+  return P.big();
+}
+function unpackBuild(N){
+  const U=unpacker(N);
+  if(U.get(4)!==1)throw new Error('version');
+  const o=defState();o.role=ROLES[U.get(4)];o.waku=U.get(MAX_WAKU+1);
+  if(U.get(2)){const bm=U.get(256);o.books=BOOKS.filter((x,i)=>bm&(1<<i))}
+  o.lv=U.gam()+1;STATS.forEach(([k])=>o.st[k]=U.gam());
+  const neg=U.get(2),ra=U.gam();o.stp=Math.max(0,usedOf(o)+(neg?-ra:ra));
+  const n=BASE_SLOTS+o.waku,k=U.get(n+1);let miss=0,warn=false;
+  if(k){
+    const all=U.get(2),b=U.get(17)+4,salt=U.get(256),cand=candList(o,!!all);
+    const map={};for(const x of cand)(map[hb(x,salt,b)]=map[hb(x,salt,b)]||[]).push(x);
+    for(let i=0;i<k;i++){
+      const v=U.get((1<<b)+1);if(!v){o.slots.push(null);continue}
+      const c=(map[v-1]||[]).filter(x=>!o.slots.includes(x));
+      if(!c.length){o.slots.push(null);miss++;continue}
+      if(c.length>1)warn=true; // データ追加で偶然衝突（まれ）
+      o.slots.push(c[0]);
+    }
+  }
+  if(!U.done())throw new Error('trailing');
+  return{state:sanitize(o),miss,warn};
+}
+const encodeKanji=(st=S)=>toDigits(packBuild(st),KBASE).map(d=>String.fromCharCode(KANJI0+d)).join('');
+const encodeB62=(st=S)=>toDigits(packBuild(st),62).map(d=>B62[d]).join('');
+const fromB62=t=>fromDigits([...t].map(c=>{const i=B62.indexOf(c);if(i<0)throw new Error('char');return i}),62);
+function readCode(text){
+  text=String(text||'').trim();let m;
+  try{text=decodeURIComponent(text)}catch(e){}
+  if(m=text.match(/#s=([0-9A-Za-z]+)/))return unpackBuild(fromB62(m[1]));
+  if(m=text.match(/[#&?]c=([\w-]+)/))return decodeBuild(m[1]);            // v2
+  if(m=text.match(/#b=([\w-]+)/))return{state:sanitize(dec(m[1])),miss:0}; // v1
+  const runs=text.match(/[一-跿]+/g);
+  if(runs){const r=runs.sort((a,b)=>b.length-a.length)[0];return unpackBuild(fromDigits([...r].map(c=>c.codePointAt(0)-KANJI0),KBASE))}
+  if(/^[0-9A-Za-z]+$/.test(text)){try{return unpackBuild(fromB62(text))}catch(e){}}
+  return decodeBuild(text);
+}
+const shareUrl=()=>(HOSTED?location.href.split('#')[0]:SHARE_BASE)+'#s='+encodeB62();
+const codeMsg=r=>(r.miss?`（不明スキル${r.miss}件は空き扱い）`:'')+(r.warn?'（スキル追加の影響で一部の枠が曖昧。確認してください）':'');
+
+/* ---------- 状態 ---------- */
+function defState(){return{role:'SUP',lv:1,stp:0,st:{atk:0,agi:0,dex:0,def:0,mnd:0,luk:0},waku:0,books:[],slots:[],wish:[]}}
+function sanitize(o){
+  const d=defState();if(!o||typeof o!=='object')return d;
+  if(ROLES.includes(o.role))d.role=o.role;
+  d.lv=clamp(int(o.lv)||1,1,MAX_LV);d.stp=clamp(int(o.stp),0,99999);
+  for(const[k]of STATS)d.st[k]=clamp(int(o.st&&o.st[k]),0,999);
+  d.waku=clamp(int(o.waku),0,MAX_WAKU);
+  d.books=Array.isArray(o.books)?o.books.filter(b=>BOOKS.includes(b)):[];
+  d.slots=Array.isArray(o.slots)?o.slots.slice(0,MAX_SLOTS).map(x=>typeof x==='string'&&x?x:null):[];
+  d.wish=Array.isArray(o.wish)?[...new Set(o.wish.filter(x=>typeof x==='string'))]:[];
+  return d;
+}
+let S=defState();
+const dec=t=>{t=t.replace(/-/g,'+').replace(/_/g,'/');const s=atob(t);return JSON.parse(new TextDecoder().decode(Uint8Array.from(s,c=>c.charCodeAt(0))))};
+
+/* ---------- 計算 ---------- */
+const wakuCost=n=>WAKU_COST.slice(0,n).reduce((a,b)=>a+b,0);
+const statPoints=(st=S.st)=>STATS.reduce((a,[k])=>a+st[k],0);
+const usedStp=()=>statPoints()*3+wakuCost(S.waku);
+const remain=()=>S.stp-usedStp();
+const slotCount=()=>BASE_SLOTS+S.waku;
+function evalSkill(sk,st=S.st){
+  const r=sk.req,blockers=[],need={};
+  if(r.kind==='role'){if(S.role!==r.role)blockers.push(r.role+'専用');else if(S.lv<r.lv)blockers.push('Lv'+r.lv+'以上');}
+  else if(r.kind==='book'){if(r.role&&S.role!==r.role)blockers.push(r.role+'専用');if(!S.books.includes(r.book))blockers.push('本【'+r.book+'】');}
+  else if(r.kind==='stat'){for(const k in r.need){const d=r.need[k]-(st[k]||0);if(d>0)need[k]=d}}
+  else if(r.kind==='unknown')blockers.push('条件解析不能');
+  const pts=Object.values(need).reduce((a,b)=>a+b,0);
+  return{ok:!blockers.length&&!pts,blockers,need,cost:pts*3};
+}
+const lackText=ev=>[...ev.blockers,...Object.entries(ev.need).map(([k,v])=>KEY2JA[k]+'+'+v)].join(' / ');
+function nextUnlock(k){
+  let best=null;
+  for(const sk of SKILLS){
+    if(sk.req.kind!=='stat'||Object.keys(sk.req.need).length!==1||!(k in sk.req.need))continue;
+    const th=sk.req.need[k];if(th<=S.st[k])continue;
+    if(!best||th<best.th)best={th,names:[sk.name]};else if(th===best.th)best.names.push(sk.name);
+  }
+  return best;
+}
+function sortKey(name,idx){
+  const sk=name&&BY_NAME[name];
+  const k={empty:sk?0:1,isPassive:0,nth:0,per:0,cp:0,slv:0,po:PASSIVE_ORDER.length+100,idx};
+  if(!sk)return k;
+  if(!sk.c.active){k.isPassive=1;const p=PASSIVE_ORDER.indexOf(sk.c.trig);if(p>=0)k.po=p;}
+  else{k.slv=sk.c.slv;k.nth=sk.c.nth;k.per=sk.c.per;k.cp=sk.c.injured?1:0;}
+  return k;
+}
+function cmpKey(a,b){
+  return(a.empty-b.empty)||(a.isPassive-b.isPassive)||(b.nth-a.nth)||(b.per-a.per)||(b.cp-a.cp)||(b.slv-a.slv)||(a.po-b.po)||(a.idx-b.idx);
+}
+function lintSlots(){
+  const n=slotCount(),res=[];let minAlways=Infinity,act=0,pas=0,hasSlv0=false;const trig={};const dup=new Set(),seen=new Set();
+  for(let i=0;i<n;i++){
+    const name=S.slots[i],b=[];const sk=name&&BY_NAME[name];
+    if(name&&!sk)b.push(['bad','データに無いスキル']);
+    if(name){if(seen.has(name)){b.push(['bad','重複']);dup.add(name)}seen.add(name)}
+    if(sk){
+      const ev=evalSkill(sk);if(!ev.ok)b.push(['bad','未取得：'+lackText(ev)]);
+      if(sk.c.active){
+        act++;
+        if(sk.c.slv>=minAlways)b.push(['warn','到達不能（上にSLv'+minAlways+'通常時）']);
+        if(sk.c.always){minAlways=Math.min(minAlways,sk.c.slv);if(sk.c.slv===0)hasSlv0=true}
+      }else{pas++;trig[sk.c.trig]=(trig[sk.c.trig]||0)+1}
+    }
+    res.push(b);
+  }
+  return{res,act,pas,trig,hasSlv0};
+}
+
+/* ---------- 描画 ---------- */
+function renderBasics(){
+  $('#in-role').value=S.role;$('#in-lv').value=S.lv;
+  if(document.activeElement!==$('#in-stp'))$('#in-stp').value=S.stp;
+  const r=remain();
+  $('#out-remain').textContent=r;$('#out-remain').classList.toggle('neg',r<0);
+  $('#out-used').textContent=`使用 ${usedStp()}（能力値 ${statPoints()*3} ＋ 枠 ${wakuCost(S.waku)}）/ ${S.stp}`+(r<0?' ― STP超過':'');
+}
+function renderStats(){
+  for(const[k]of STATS){
+    const inp=$('#st-'+k);if(document.activeElement!==inp)inp.value=S.st[k];
+    const nx=nextUnlock(k);
+    $('#nx-'+k).innerHTML=nx?`あと${nx.th-S.st[k]}で ${esc(nx.names.join('・'))}`:'単系統は全解放';
+    $('#nx-'+k).title=nx?`${KEY2JA[k]}${nx.th}到達に${(nx.th-S.st[k])*3}STP`:'';
+  }
+  $('#in-waku').value=S.waku;
+  const nextCost=S.waku<MAX_WAKU?WAKU_COST[S.waku]:null;
+  $('#out-waku').textContent=`計${slotCount()}枠（枠に${wakuCost(S.waku)}STP）`+(nextCost?`／次の枠は${nextCost}STP`:'／上限');
+  document.querySelectorAll('#books input').forEach(c=>c.checked=S.books.includes(c.value));
+}
+function skillOptions(cur,used){
+  let h='<option value="">（空き）</option>',g=null;
+  for(const sk of SKILLS){
+    const ev=evalSkill(sk);
+    if(sk.name!==cur&&(!ev.ok||used.has(sk.name)))continue;
+    if(sk.group!==g){if(g!==null)h+='</optgroup>';g=sk.group;h+=`<optgroup label="${esc(g)}">`}
+    h+=`<option value="${esc(sk.name)}"${sk.name===cur?' selected':''}>${ev.ok?'':'✗ '}${esc(sk.name)}</option>`;
+  }
+  if(g!==null)h+='</optgroup>';
+  if(cur&&!BY_NAME[cur])h+=`<option value="${esc(cur)}" selected>✗ ${esc(cur)}</option>`;
+  return h;
+}
+function renderSlots(){
+  const n=slotCount(),L=lintSlots();
+  $('#slot-count').textContent=`${S.slots.slice(0,n).filter(Boolean).length}/${n}枠（初期${BASE_SLOTS}＋追加${S.waku}）`;
+  let h='';
+  for(let i=0;i<n;i++){
+    const name=S.slots[i]||null,sk=name&&BY_NAME[name];
+    const used=new Set(S.slots.slice(0,n).filter((x,j)=>x&&j!==i));
+    const bad=L.res[i].some(b=>b[0]==='bad');
+    h+=`<div class="slot${bad?' over':''}" data-i="${i}">
+      <span class="no">${i+1}.</span>
+      <select data-act="pick">${skillOptions(name,used)}</select>
+      <span class="ops"><button class="sm" data-act="up"${i===0?' disabled':''}>↑</button><button class="sm" data-act="down"${i===n-1?' disabled':''}>↓</button><button class="sm" data-act="rm"${name?'':' disabled'}>×</button></span>
+      ${sk?`<div class="desc"><span class="b ${sk.c.active?'act':'pas'}">${sk.c.active?'A':'P'}</span>【${esc(sk.cond)}】${esc(sk.eff)}</div>`:''}
+      ${L.res[i].length?`<div class="bd">${L.res[i].map(([c,t])=>`<span class="b ${c}">${esc(t)}</span>`).join('')}</div>`:''}
+    </div>`;
+  }
+  $('#slots').innerHTML=h;
+  const notes=[];
+  const over=S.slots.slice(n).filter(Boolean);
+  if(over.length)notes.push(`<div class="neg">枠外に残っているスキル：${esc(over.join('、'))}（枠を増やすと戻ります）</div>`);
+  notes.push(`<div>アクティブ ${L.act} ／ パッシブ ${L.pas}</div>`);
+  const tr=Object.entries(L.trig).sort((a,b)=>PASSIVE_ORDER.indexOf(a[0])-PASSIVE_ORDER.indexOf(b[0]));
+  if(tr.length)notes.push(`<div class="muted">パッシブ内訳：${tr.map(([t,c])=>esc(t)+'×'+c).join('、')}</div>`);
+  if(L.act&&!L.hasSlv0)notes.push(`<div><span class="b warn">注意</span>「SLv0以上/通常時」のアクティブがありません。条件を満たすアクティブが無い行動が発生します。</div>`);
+  if(!L.act)notes.push(`<div><span class="b warn">注意</span>アクティブスキルが設定されていません。</div>`);
+  $('#slot-notes').innerHTML=notes.join('');
+}
+function renderList(){
+  const q=norm($('#f-q').value).toLowerCase(),mode=$('#f-mode').value,typ=$('#f-type').value,trig=$('#f-trig').value,grp=$('#f-group').value;
+  const rem=remain(),slotted=new Set(S.slots.slice(0,slotCount()).filter(Boolean)),wish=new Set(S.wish);
+  let h='',cur=null,shown=0,okCount=0;
+  for(const sk of SKILLS){
+    const ev=evalSkill(sk);if(ev.ok)okCount++;
+    if(grp&&sk.group!==grp)continue;
+    if((typ==='active'&&!sk.c.active)||(typ==='passive'&&sk.c.active))continue;
+    if(trig&&sk.c.tag!==trig)continue;
+    if(mode==='ok'&&!ev.ok)continue;
+    if(mode==='ng'&&ev.ok)continue;
+    if(mode==='afford'&&(ev.ok||ev.blockers.length||ev.cost>rem))continue;
+    if(mode==='wish'&&!wish.has(sk.name))continue;
+    if(q&&!(sk.name+' '+sk.cond+' '+sk.reqText+' '+sk.eff).toLowerCase().includes(q))continue;
+    shown++;
+    if(sk.group!==cur){cur=sk.group;h+=`<tr class="gh"><td colspan="6">${esc(cur)}</td></tr>`}
+    let st;
+    if(ev.ok)st='<span class="b ok">取得可</span>';
+    else if(ev.blockers.length)st=`<span class="b ng">${esc(lackText(ev))}</span>`;
+    else st=`<span class="b lack">${esc(lackText(ev))}（${ev.cost}STP）</span><button class="sm" data-act="alloc" title="不足分だけ振る">振る</button>`;
+    const isSl=slotted.has(sk.name);
+    h+=`<tr class="${ev.ok?'ok':'ng'}${isSl?' slotted':''}" data-n="${esc(sk.name)}">
+      <td class="st">${st}</td>
+      <td class="nm"><button class="star${wish.has(sk.name)?' on':''}" data-act="wish" title="欲しいスキルに追加">${wish.has(sk.name)?'★':'☆'}</button>${esc(sk.name)}</td>
+      <td class="cd"><span class="b ${sk.c.active?'act':'pas'}">${sk.c.active?'A':'P'}</span>${esc(sk.cond)}</td>
+      <td class="rq">${esc(sk.reqText)}</td>
+      <td class="ef">${esc(sk.eff)}</td>
+      <td>${isSl?'<button class="sm" data-act="unslot">外す</button>':`<button class="sm" data-act="slot"${ev.ok?'':' disabled'}>枠へ</button>`}</td></tr>`;
+  }
+  $('#list-body').innerHTML=h||'<tr><td colspan="6" class="muted">該当なし</td></tr>';
+  $('#list-count').textContent=`表示 ${shown} ／ 取得可能 ${okCount} ／ 全 ${SKILLS.length}`;
+}
+function wishCalc(){
+  const req={atk:0,agi:0,dex:0,def:0,mnd:0,luk:0},blockers=new Set();
+  const list=S.wish.map(n=>BY_NAME[n]).filter(Boolean);
+  for(const sk of list){
+    const r=sk.req;
+    if(r.kind==='stat')for(const k in r.need)req[k]=Math.max(req[k],r.need[k]);
+    const ev=evalSkill(sk,req);ev.blockers.forEach(b=>blockers.add(sk.name+'：'+b));
+  }
+  const wakuNeed=clamp(list.length-BASE_SLOTS,0,MAX_WAKU);
+  const cost=statPoints(req)*3+wakuCost(wakuNeed);
+  return{req,blockers:[...blockers],wakuNeed,cost,list,tooMany:list.length>MAX_SLOTS};
+}
+function renderWish(){
+  const w=wishCalc();
+  if(!w.list.length){$('#wish-out').innerHTML='<div class="muted">一覧の☆を押すと、それらを全部取得するのに必要な能力値・枠・STPを計算します。</div>';return}
+  const diff=S.stp-w.cost;
+  $('#wish-out').innerHTML=`
+    <div>☆ ${w.list.length}件：${esc(w.list.map(s=>s.name).join('、'))}</div>
+    <div>必要能力値：${STATS.filter(([k])=>w.req[k]).map(([k,j])=>j+w.req[k]).join(' ')||'なし'}</div>
+    <div>必要枠：追加${w.wakuNeed}（計${BASE_SLOTS+w.wakuNeed}枠）${w.tooMany?' <span class="neg">※最大12枠を超過</span>':''}</div>
+    <div>必要STP：<b>${w.cost}</b>（使用可能${S.stp} → <span class="${diff<0?'neg':'pos'}">${diff>=0?'余り'+diff:'不足'+(-diff)}</span>）</div>
+    ${w.blockers.length?`<div class="neg">STP以外の条件：${esc(w.blockers.join('、'))}</div>`:''}
+    <div class="row"><button class="pri" id="btn-wish-apply">この振り方を適用</button><button id="btn-wish-clear">☆を全解除</button></div>`;
+}
+function exportText(){
+  const n=slotCount();
+  const lines=[`【LAビルド】${S.role} Lv${S.lv} ／ STP ${usedStp()}/${S.stp}（残り${remain()}）`,
+    STATS.map(([k,j])=>j+S.st[k]).join(' ')+` ／ スキル枠${n}（追加${S.waku}）`];
+  if(S.books.length)lines.push('スキルブック：'+S.books.join('・'));
+  lines.push('');
+  for(let i=0;i<n;i++){const nm=S.slots[i];const sk=nm&&BY_NAME[nm];lines.push(`${i+1}. `+(sk?`${sk.name}【${sk.cond}】${sk.eff}`:(nm||'（空き）')))}
+  lines.push('','ビルドコード：'+encodeKanji(),shareUrl());
+  return lines.join('\n');
+}
+function persist(){ls.set(LS_STATE,JSON.stringify(S))}
+function renderAll(){
+  renderBasics();renderStats();renderSlots();renderList();renderWish();renderDataStatus();
+  $('#export-area').value=exportText();
+  const c=encodeKanji();$('#code-preview').textContent=`コード（${c.length}文字）：${c}`;
+  persist();
+}
+
+/* ---------- 操作 ---------- */
+function addToSlot(name){
+  const n=slotCount();
+  if(S.slots.slice(0,n).includes(name))return toast('既に設定済み');
+  for(let i=0;i<n;i++){if(!S.slots[i]){S.slots[i]=name;return toast(`${i+1}枠目に設定`)}}
+  toast('空き枠がありません');
+}
+function compactSlots(){const n=slotCount();const a=S.slots.slice(0,n);while(a.length<n)a.push(null);S.slots=a.concat(S.slots.slice(n))}
+function refreshPresets(){
+  let p={};try{p=JSON.parse(ls.get(LS_PRESETS)||'{}')}catch(e){}
+  $('#preset-sel').innerHTML=Object.keys(p).length?Object.keys(p).map(k=>`<option>${esc(k)}</option>`).join(''):'<option value="">（保存なし）</option>';
+  return p;
+}
+async function copyText(t){
+  try{await navigator.clipboard.writeText(t)}catch(e){const ta=document.createElement('textarea');ta.value=t;document.body.appendChild(ta);ta.select();document.execCommand('copy');ta.remove()}
+  toast('コピーしました');
+}
+
+function setupFilters(){
+  const tags=[...new Set(SKILLS.map(s=>s.c.tag))].sort((a,b)=>{
+    const ia=a.startsWith('アクティブ')?-1:PASSIVE_ORDER.indexOf(a),ib=b.startsWith('アクティブ')?-1:PASSIVE_ORDER.indexOf(b);
+    return ia-ib||a.localeCompare(b,'ja')});
+  const t=$('#f-trig').value,g=$('#f-group').value;
+  $('#f-trig').innerHTML='<option value="">発動条件</option>'+tags.map(x=>`<option>${esc(x)}</option>`).join('');
+  $('#f-group').innerHTML='<option value="">区分</option>'+GROUPS.map(x=>`<option>${esc(x)}</option>`).join('');
+  $('#f-trig').value=tags.includes(t)?t:'';$('#f-group').value=GROUPS.includes(g)?g:'';
+}
+async function init(){
+  loadData();
+  if(HOSTED){
+    try{const rows=await Promise.race([fetchCSV(),new Promise((_,j)=>setTimeout(()=>j(new Error('タイムアウト')),5000))]);
+      if(rows.length>=MIN_ROWS){DATA={rows,at:Date.now(),src:'csv',label:''};ls.set(LS_CACHE,JSON.stringify(DATA));buildSkills(rows)}
+      else BRIDGE_MSG='skills.csv 取得失敗：行数不足';}
+    catch(e){BRIDGE_MSG='skills.csv 取得失敗：'+e.message+'（キャッシュ/内蔵データで表示中）'}
+  }
+  $('#in-lv').innerHTML=Array.from({length:MAX_LV},(_,i)=>`<option value="${i+1}">Lv${i+1}</option>`).join('');
+  $('#in-waku').innerHTML=Array.from({length:MAX_WAKU+1},(_,i)=>`<option value="${i}">+${i}（計${BASE_SLOTS+i}枠・${wakuCost(i)}STP）</option>`).join('');
+  $('#stat-body').innerHTML=STATS.map(([k,j])=>`<tr><th>${j}</th><td class="pm">
+    <button data-k="${k}" data-d="-5">−5</button><button data-k="${k}" data-d="-1">−</button><input type="number" id="st-${k}" min="0" max="999"><button data-k="${k}" data-d="1">＋</button><button data-k="${k}" data-d="5">+5</button>
+    </td><td class="nx" id="nx-${k}"></td></tr>`).join('');
+  $('#books').innerHTML=BOOKS.map(b=>`<label><input type="checkbox" value="${b}"> ${b}</label>`).join('');
+  setupFilters();
+
+  // 状態復元：URL > 自動保存
+  let fromUrl=false;
+  if(/#[bcs]=/.test(location.hash)){try{const r=readCode(location.hash);S=r.state;fromUrl=true;toast('共有URLのビルドを読み込みました'+codeMsg(r))}catch(e){toast('共有URLのビルドを読めませんでした')}}
+  if(!fromUrl){try{S=sanitize(JSON.parse(ls.get(LS_STATE)))}catch(e){S=defState()}}
+  refreshPresets();
+
+  $('#in-role').onchange=e=>{S.role=e.target.value;renderAll()};
+  $('#in-lv').onchange=e=>{S.lv=int(e.target.value);renderAll()};
+  $('#in-stp').oninput=e=>{S.stp=clamp(int(e.target.value),0,99999);renderAll()};
+  $('#in-waku').onchange=e=>{S.waku=int(e.target.value);compactSlots();renderAll()};
+  $('#stat-body').addEventListener('click',e=>{const b=e.target.closest('button[data-k]');if(!b)return;const k=b.dataset.k;S.st[k]=clamp(S.st[k]+int(b.dataset.d),0,999);renderAll()});
+  $('#stat-body').addEventListener('input',e=>{const k=e.target.id.replace('st-','');if(!(k in S.st))return;S.st[k]=clamp(int(e.target.value),0,999);renderAll()});
+  $('#books').addEventListener('change',()=>{S.books=[...document.querySelectorAll('#books input:checked')].map(c=>c.value);renderAll()});
+  $('#btn-refund').onclick=()=>{STATS.forEach(([k])=>S.st[k]=0);renderAll()};
+  $('#btn-fill-waku').onclick=()=>{let added=0;while(S.waku<MAX_WAKU&&remain()>=WAKU_COST[S.waku]){S.waku++;added++}compactSlots();toast(added?`枠を${added}つ追加`:'追加できる枠がありません');renderAll()};
+
+  $('#slots').addEventListener('change',e=>{const s=e.target.closest('[data-i]');if(!s||e.target.dataset.act!=='pick')return;S.slots[int(s.dataset.i)]=e.target.value||null;renderAll()});
+  $('#slots').addEventListener('click',e=>{
+    const b=e.target.closest('button[data-act]');if(!b)return;const i=int(b.closest('[data-i]').dataset.i);const a=S.slots;
+    if(b.dataset.act==='up'&&i>0)[a[i-1],a[i]]=[a[i]||null,a[i-1]||null];
+    if(b.dataset.act==='down')[a[i+1],a[i]]=[a[i]||null,a[i+1]||null];
+    if(b.dataset.act==='rm')a[i]=null;
+    renderAll();
+  });
+  $('#btn-autosort').onclick=()=>{const n=slotCount();const head=S.slots.slice(0,n);while(head.length<n)head.push(null);
+    const sorted=head.map((x,i)=>({x,k:sortKey(x,i)})).sort((a,b)=>cmpKey(a.k,b.k)).map(o=>o.x);
+    S.slots=sorted.concat(S.slots.slice(n));renderAll();toast('並べ替えました')};
+  $('#btn-clear-slots').onclick=()=>{if(confirm('スキル設定を全て空にしますか？')){S.slots=[];renderAll()}};
+
+  ['#f-q','#f-mode','#f-type','#f-trig','#f-group'].forEach(s=>$(s).addEventListener(s==='#f-q'?'input':'change',renderList));
+  $('#list-body').addEventListener('click',e=>{
+    const b=e.target.closest('button[data-act]');if(!b)return;const name=b.closest('tr').dataset.n;const sk=BY_NAME[name];
+    if(b.dataset.act==='alloc'){const ev=evalSkill(sk);for(const k in ev.need)S.st[k]+=ev.need[k];toast(`${name}：${lackText(ev)} を振りました`)}
+    if(b.dataset.act==='slot')addToSlot(name);
+    if(b.dataset.act==='unslot'){const i=S.slots.indexOf(name);if(i>=0)S.slots[i]=null}
+    if(b.dataset.act==='wish'){const i=S.wish.indexOf(name);if(i>=0)S.wish.splice(i,1);else S.wish.push(name)}
+    renderAll();
+  });
+  $('#wish-out').addEventListener('click',e=>{
+    if(e.target.id==='btn-wish-clear'){S.wish=[];renderAll()}
+    if(e.target.id==='btn-wish-apply'){
+      const w=wishCalc();
+      if(!confirm('能力値を☆スキルの必要値ちょうどに設定し、枠を追加して空き枠に☆スキルを入れます。よろしいですか？'))return;
+      S.st={...w.req};S.waku=Math.max(S.waku,w.wakuNeed);compactSlots();
+      for(const sk of w.list)if(evalSkill(sk).ok&&!S.slots.slice(0,slotCount()).includes(sk.name)){const n=slotCount();for(let i=0;i<n;i++)if(!S.slots[i]){S.slots[i]=sk.name;break}}
+      renderAll();toast('適用しました');
+    }
+  });
+
+  $('#btn-save').onclick=()=>{const nm=norm($('#preset-name').value)||`${S.role} Lv${S.lv} ${new Date().toLocaleString('ja-JP')}`;const p=refreshPresets();p[nm]=S;ls.set(LS_PRESETS,JSON.stringify(p));refreshPresets();$('#preset-sel').value=nm;toast('保存しました')};
+  $('#btn-load').onclick=()=>{const p=refreshPresets(),nm=$('#preset-sel').value;if(!p[nm])return;S=sanitize(p[nm]);$('#preset-name').value=nm;renderAll();toast('読み込みました')};
+  $('#btn-del').onclick=()=>{const p=refreshPresets(),nm=$('#preset-sel').value;if(!p[nm]||!confirm(`「${nm}」を削除しますか？`))return;delete p[nm];ls.set(LS_PRESETS,JSON.stringify(p));refreshPresets()};
+  $('#btn-code').onclick=()=>copyText(encodeKanji());
+  $('#btn-url').onclick=()=>{const url=shareUrl();if(HOSTED)history.replaceState(null,'',url);copyText(url)};
+  $('#btn-code-load').onclick=()=>{
+    try{const r=readCode($('#code-in').value);S=r.state;renderAll();toast('ビルドを読み込みました'+codeMsg(r))}
+    catch(e){toast('コードを読めませんでした')}
+  };
+  $('#btn-text').onclick=()=>copyText(exportText());
+  $('#btn-reset').onclick=()=>{if(confirm('入力を初期状態に戻しますか？（保存済みビルドは残ります）')){S=defState();history.replaceState(null,'',location.href.split('#')[0]);renderAll()}};
+
+  $('#data-file').onchange=e=>{
+    const f=e.target.files[0];if(!f)return;const rd=new FileReader();
+    rd.onload=()=>{setData(parseTextData(decodeBytes(rd.result)),'file',f.name);e.target.value=''};
+    rd.readAsArrayBuffer(f);
+  };
+  $('#btn-refresh').onclick=()=>requestRefresh(true);
+  if(HOSTED)$('#btn-refresh').textContent='skills.csv を再読込';
+  $('#btn-csv').onclick=()=>{
+    const a=document.createElement('a');
+    a.href=URL.createObjectURL(new Blob([toCSV(DATA.rows)],{type:'text/csv'}));a.download='skills.csv';a.click();
+    setTimeout(()=>URL.revokeObjectURL(a.href),1000);
+  };
+  $('#btn-data-reset').onclick=()=>{ls.del(LS_CACHE);DATA=builtinData();buildSkills(DATA.rows);setupFilters();renderAll();toast('内蔵データに戻しました')};
+
+  renderAll();
+  scheduleRefresh(); // 開きっぱなし対策：6:00/18:00に再読込（配信時はCSV、ローカルは連携スクリプト）
+}
+init();
+</script>
+</body>
+</html>

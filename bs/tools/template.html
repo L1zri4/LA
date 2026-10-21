@@ -1,0 +1,818 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>LA ビルドシミュレータ</title>
+<style>
+:root{--bg:#1c1f1d;--card:#262a27;--card2:#2f3430;--line:#3d443f;--tx:#ddd;--sub:#9aa39c;--ac:#70ca7c;--ac2:#2d7a47;--ng:#e07070;--warn:#e6b84d;--info:#88ccff}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--tx);font:14px/1.6 "BIZ UDPGothic","Hiragino Kaku Gothic ProN",Meiryo,sans-serif}
+header{display:flex;flex-wrap:wrap;align-items:baseline;gap:6px 16px;padding:10px 16px;border-bottom:1px solid var(--line);background:#121412}
+header h1{margin:0;font-size:18px;color:#fff}
+header .meta{color:var(--sub);font-size:12px}
+main{display:grid;grid-template-columns:310px 390px minmax(0,1fr);gap:12px;padding:12px;align-items:start}
+@media(max-width:1300px){main{grid-template-columns:310px minmax(0,1fr)}#list-col{grid-column:1/-1}}
+@media(max-width:760px){main{grid-template-columns:minmax(0,1fr)}}
+.card{background:var(--card);border:1px solid var(--line);border-radius:8px;padding:10px 12px;margin-bottom:12px}
+.card h2{margin:0 0 8px;font-size:14px;color:var(--ac);border-bottom:1px solid var(--line);padding-bottom:4px;display:flex;justify-content:space-between;align-items:center;gap:8px}
+.card h2 small{color:var(--sub);font-weight:normal}
+label.f{display:flex;align-items:center;justify-content:space-between;gap:8px;margin:4px 0}
+input,select,button{font:inherit;color:#eee;background:#151816;border:1px solid #555;border-radius:4px;padding:3px 6px}
+input[type=number]{width:72px;text-align:right}
+button{cursor:pointer;background:var(--card2)}
+button:hover{border-color:var(--ac)}
+button.pri{background:var(--ac2);border-color:#3c8f58}
+button.sm{padding:0 6px;font-size:12px}
+button:disabled{opacity:.4;cursor:default}
+.big{font-size:20px;font-weight:bold}
+.neg{color:var(--ng)!important}
+.pos{color:var(--ac)}
+.muted{color:var(--sub);font-size:12px}
+table{border-collapse:collapse;width:100%}
+#stat-tbl td,#stat-tbl th{padding:3px 2px;border-bottom:1px solid var(--line);vertical-align:middle}
+#stat-tbl th{text-align:left;white-space:nowrap;width:3em}
+#stat-tbl .pm{white-space:nowrap}
+#stat-tbl .pm button{width:30px;padding:2px 0}
+#stat-tbl .pm input{width:52px}
+#stat-tbl .nx{font-size:11px;color:var(--sub)}
+.sumrow{display:flex;justify-content:space-between;align-items:baseline;gap:8px}
+.books{display:grid;grid-template-columns:repeat(4,1fr);gap:2px 6px}
+.books label{white-space:nowrap}
+.row{display:flex;flex-wrap:wrap;gap:6px;align-items:center;margin:4px 0}
+.slot{display:grid;grid-template-columns:28px 1fr auto;gap:2px 6px;padding:6px 4px;border-bottom:1px solid var(--line)}
+.slot .no{color:var(--sub);text-align:right;padding-top:3px}
+.slot select{width:100%}
+.slot .desc{grid-column:2/4;font-size:12px;color:#cfd6d0}
+.slot .bd{grid-column:2/4}
+.slot.over{background:rgba(224,112,112,.08)}
+.ops{white-space:nowrap}
+.b{display:inline-block;font-size:11px;padding:0 6px;border-radius:3px;border:1px solid;margin:1px 2px 1px 0;line-height:1.6}
+.b.ok{color:var(--ac);border-color:var(--ac)}
+.b.ng,.b.bad{color:var(--ng);border-color:var(--ng)}
+.b.warn,.b.lack{color:var(--warn);border-color:var(--warn)}
+.b.info{color:var(--info);border-color:var(--info)}
+.b.act{color:#d0b888;border-color:#8a6d33}
+.b.pas{color:#a8c4cc;border-color:#3d5a62}
+.notes div{font-size:12px;margin:2px 0}
+#filters{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:8px}
+#filters input[type=search]{flex:1 1 160px;min-width:120px}
+#list-wrap{max-height:calc(100vh - 170px);overflow:auto;border:1px solid var(--line);border-radius:6px}
+@media(max-width:1300px){#list-wrap{max-height:none}}
+#list td,#list th{padding:4px 6px;border-bottom:1px solid #333a35;vertical-align:top;font-size:13px}
+#list th{position:sticky;top:0;background:#121412;text-align:left;z-index:1;white-space:nowrap}
+#list tr.gh td{background:#1f2a22;color:var(--ac);font-weight:bold;font-size:12px}
+#list tr.ok td.nm{color:#fff}
+#list tr.ng td{color:#8b928c}
+#list tr.ng td.st{color:inherit}
+#list tr.slotted td.nm::after{content:" ●";color:var(--ac)}
+#list td.nm{white-space:nowrap;font-weight:bold}
+#list td.cd,#list td.rq{white-space:nowrap;font-size:12px}
+#list td:last-child{white-space:nowrap}
+#list td.ef{min-width:14em}
+#list td.st .b{white-space:nowrap}
+.star{background:none;border:none;color:#777;padding:0 2px;font-size:15px}
+.star.on{color:#ffcc66}
+details summary{cursor:pointer;color:var(--sub);font-size:12px}
+.toast{position:fixed;right:16px;bottom:16px;background:#000c;color:#fff;padding:8px 14px;border-radius:6px;z-index:9;display:none}
+textarea{width:100%;height:120px;background:#151816;color:#eee;border:1px solid #555;border-radius:4px;font:12px monospace}
+</style>
+</head>
+<body>
+<header>
+  <h1>Leciel Arcadia ビルドシミュレータ</h1>
+  <span class="meta" id="data-info"></span>
+</header>
+<main>
+<!-- ===== 左：入力 ===== -->
+<section id="left-col">
+  <div class="card">
+    <h2>基本</h2>
+    <label class="f">役割
+      <select id="in-role"><option>TANK</option><option>DPS</option><option>HEAL</option><option>SUP</option></select></label>
+    <label class="f">レベル <select id="in-lv"></select></label>
+    <label class="f">使用可能STP <input type="number" id="in-stp" min="0" max="99999"></label>
+    <div class="sumrow" style="margin-top:6px"><span>残りSTP</span><span class="big" id="out-remain"></span></div>
+    <div class="muted" id="out-used"></div>
+  </div>
+
+  <div class="card">
+    <h2>能力値 <small>1上昇＝3STP</small></h2>
+    <table id="stat-tbl"><tbody id="stat-body"></tbody></table>
+    <label class="f" style="margin-top:8px">スキル枠 追加
+      <select id="in-waku"></select></label>
+    <div class="muted" id="out-waku"></div>
+    <div class="row">
+      <button id="btn-refund">能力値を全部戻す</button>
+      <button id="btn-fill-waku" title="残りSTPで買える分だけ枠を追加">買えるだけ枠追加</button>
+    </div>
+  </div>
+
+  <div class="card">
+    <h2>スキルブック所持</h2>
+    <div class="books" id="books"></div>
+  </div>
+
+  <div class="card">
+    <h2>欲しいスキルから逆算 <small>一覧の☆で指定</small></h2>
+    <div id="wish-out" class="notes"></div>
+  </div>
+
+  <div class="card">
+    <h2>保存・共有</h2>
+    <div class="row"><input id="preset-name" placeholder="ビルド名" style="flex:1"><button id="btn-save">保存</button></div>
+    <div class="row"><select id="preset-sel" style="flex:1"></select><button id="btn-load">読込</button><button id="btn-del">削除</button></div>
+    <div class="row">
+      <button class="pri" id="btn-code" title="役割・Lv・STP・能力値・枠・ブック・スキル設定を漢字十数文字にします（☆は含みません）">ビルドコードをコピー</button>
+      <button id="btn-url">共有URLをコピー</button>
+    </div>
+    <div class="row"><input id="code-in" placeholder="ビルドコード or 共有URLを貼り付け" style="flex:1"><button id="btn-code-load">読込</button></div>
+    <div class="row">
+      <button id="btn-text">テキストでコピー</button>
+      <button id="btn-reset">初期化</button>
+    </div>
+    <div class="muted" id="code-preview"></div>
+    <details><summary>テキストを確認</summary><textarea id="export-area" readonly></textarea></details>
+  </div>
+
+  <div class="card">
+    <h2>スキルデータ</h2>
+    <div id="data-status" class="notes"></div>
+    <div class="row">
+      <button id="btn-refresh" title="連携スクリプト経由でゲームのスキル一覧を今すぐ取得">今すぐ再取得</button>
+      <button id="btn-csv">CSVで保存</button>
+      <button id="btn-data-reset">内蔵データに戻す</button>
+    </div>
+    <div class="row"><input type="file" id="data-file" accept=".csv,.htm,.html,.txt,.tsv"></div>
+    <details><summary>データ更新の仕組み</summary>
+      <div class="muted">
+        <b>Web配信時（GitHub Pages等）</b>：HTMLと同じ場所の <code>skills.csv</code> を開くたびに読み直します。CSVを差し替えてpushするだけで全員に反映されます（GitHub Pagesはキャッシュの都合で最大10分程度遅れることがあります）。<br>
+        <b>ローカルで開いた時</b>：前回読んだデータ（キャッシュ）か内蔵データを使います。上の欄から <code>skills.csv</code> やスキル一覧ページを保存したHTMLを読み込めば差し替えられます。連携スクリプト（LA ビルドシミュ スキル取得.user.js）を入れていれば、6:00／18:00にゲームから自動取得します。<br>
+        CSV形式：<code>スキル名,使用条件,取得条件,効果</code>（1行目は見出し、Excelでそのまま編集可）
+      </div>
+    </details>
+  </div>
+
+  <details class="card"><summary>使い方・前提</summary>
+    <div class="muted">
+      ・使用可能STPは「能力値・枠に振る前」の総量を入れてください（ゲーム画面の残りSTP＋既に振った分）。<br>
+      ・取得判定：単系統＝その能力値が閾値以上、複系統＝両方が閾値以上、役割スキル＝役割一致かつキャラLv以上、スキルブック＝所持（＋役割指定があれば一致）。<br>
+      ・レベルによる基礎ステータス上昇や役割補正は非公開のため扱っていません。<br>
+      ・「到達不能」判定：アクティブは上から順に判定されるため、上に「SLvN以上/通常時」があると、それ以上のSLvを要するアクティブは発動しません。<br>
+      ・状態はこのブラウザに自動保存されます。
+    </div>
+  </details>
+</section>
+
+<!-- ===== 中：スキル枠 ===== -->
+<section id="slot-col">
+  <div class="card">
+    <h2><span>スキル設定 <small id="slot-count"></small></span>
+      <span><button class="sm" id="btn-autosort" title="ゲームの「自動並べ替え」と同じ順序">自動並べ替え</button>
+      <button class="sm" id="btn-clear-slots">全消去</button></span></h2>
+    <div id="slots"></div>
+    <div id="slot-notes" class="notes" style="margin-top:8px"></div>
+  </div>
+</section>
+
+<!-- ===== 右：スキル一覧 ===== -->
+<section id="list-col">
+  <div class="card">
+    <h2>スキル一覧 <small id="list-count"></small></h2>
+    <div id="filters">
+      <input type="search" id="f-q" placeholder="名前・条件・効果で検索">
+      <select id="f-mode">
+        <option value="">すべて</option>
+        <option value="ok" selected>取得可能のみ</option>
+        <option value="afford">残りSTPで取得可</option>
+        <option value="ng">未取得のみ</option>
+        <option value="wish">☆のみ</option>
+      </select>
+      <select id="f-type"><option value="">種別</option><option value="active">アクティブ</option><option value="passive">パッシブ</option></select>
+      <select id="f-trig"><option value="">発動条件</option></select>
+      <select id="f-group"><option value="">区分</option></select>
+    </div>
+    <div id="list-wrap">
+      <table id="list">
+        <thead><tr><th>状態</th><th>スキル名</th><th>使用条件</th><th>取得条件</th><th>効果</th><th></th></tr></thead>
+        <tbody id="list-body"></tbody>
+      </table>
+    </div>
+  </div>
+</section>
+</main>
+<div class="toast" id="toast"></div>
+
+<script type="text/plain" id="skill-data" data-built="__BUILT_AT__">
+__DATA__
+</script>
+
+<script>
+'use strict';
+const STATS=[['atk','攻撃'],['agi','敏捷'],['dex','器用'],['def','生命'],['mnd','精神'],['luk','幸運']];
+const JA2KEY={};STATS.forEach(([k,j])=>JA2KEY[j]=k);
+const KEY2JA={};STATS.forEach(([k,j])=>KEY2JA[k]=j);
+const ROLES=['TANK','DPS','HEAL','SUP'];
+const BOOKS=['猛毒','凍結','呪縛','麻痺','治癒','平穏','祝福','加護'];
+const WAKU_COST=[35,40,45,50,60,70];
+const BASE_SLOTS=6,MAX_WAKU=6,MAX_SLOTS=12,MAX_LV=99;
+const PASSIVE_ORDER=['戦闘開始時','ターン開始時','ターン終了前','自分行動前','自分行動後','被攻撃前','戦闘離脱前','戦闘離脱後','与回復後','与ダメ後','与クリティカル前','回避時','被攻撃後'];
+const LS_STATE='la-buildsim-state',LS_PRESETS='la-buildsim-presets',LS_CACHE='la-buildsim-skills';
+const MIN_ROWS=50;
+const HOSTED=/^https?:$/.test(location.protocol);
+const SHARE_BASE='https://l1zri4.github.io/LA/'; // ローカルで開いているときの共有URLの行き先 // これ未満の取得結果は壊れているとみなして採用しない
+const SRC_LABEL={builtin:'内蔵データ',game:'ゲームから取得',csv:'skills.csv',file:'ファイル読込'};
+
+const $=s=>document.querySelector(s);
+const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const norm=s=>String(s??'').replace(/\s+/g,' ').trim();
+const int=v=>{const n=parseInt(v,10);return isNaN(n)?0:n};
+const clamp=(v,a,b)=>Math.min(b,Math.max(a,v));
+const ls={get(k){try{return localStorage.getItem(k)}catch(e){return null}},set(k,v){try{localStorage.setItem(k,v)}catch(e){}},del(k){try{localStorage.removeItem(k)}catch(e){}}};
+function toast(m){const t=$('#toast');t.textContent=m;t.style.display='block';clearTimeout(toast.t);toast.t=setTimeout(()=>t.style.display='none',2000)}
+
+/* ---------- データ ---------- */
+function parseReq(r){
+  r=norm(r);let m;
+  if(r==='基本スキル')return{kind:'basic',group:'条件なし'};
+  if(m=r.match(/^(TANK|DPS|HEAL|SUP)・LV ?(\d+)以上$/))return{kind:'role',role:m[1],lv:+m[2],group:m[1]};
+  if(m=r.match(/^(?:(TANK|DPS|HEAL|SUP) ?\/ ?)?スキルブック【(.+?)】$/))return{kind:'book',role:m[1]||null,book:m[2],group:'スキルブック'};
+  if(m=r.match(/^(攻撃|敏捷|器用|生命|精神|幸運) ?(\d+)以上$/))return{kind:'stat',need:{[JA2KEY[m[1]]]:+m[2]},group:m[1]};
+  if(m=r.match(/^(攻撃|敏捷|器用|生命|精神|幸運)・(攻撃|敏捷|器用|生命|精神|幸運) ?各(\d+)以上$/))
+    return{kind:'stat',need:{[JA2KEY[m[1]]]:+m[3],[JA2KEY[m[2]]]:+m[3]},group:m[1]+'-'+m[2]};
+  return{kind:'unknown',group:'その他'};
+}
+function parseCond(c){
+  c=norm(c);const m=c.match(/^SLv(\d+)以上 ?\/ ?(.+)$/);
+  if(!m)return{active:false,trig:c,tag:c};
+  const rest=m[2];let nth=0,per=0,injured=false,always=false,m2;
+  if(m2=rest.match(/^(\d+)行動目$/))nth=+m2[1];
+  else if(m2=rest.match(/^(\d+)行動毎$/))per=+m2[1];
+  else if(rest==='味方重傷時')injured=true;
+  else if(rest==='通常時')always=true;
+  const tag=always?'アクティブ：通常時':per?'アクティブ：行動毎':nth?'アクティブ：行動目':injured?'アクティブ：味方重傷時':'アクティブ：'+rest;
+  return{active:true,slv:+m[1],rest,nth,per,injured,always,tag};
+}
+let SKILLS=[],BY_NAME={},GROUPS=[],BY_HASH={},SALT=0,DATA=null,BRIDGE=false,BRIDGE_MSG='';
+function buildSkills(rows){
+  const seen=new Set();
+  SKILLS=[];BY_NAME={};GROUPS=[];
+  for(const r of rows){
+    const [name,cond,req,eff]=r.map(norm);
+    if(!name||seen.has(name))continue;seen.add(name);
+    const sk={name,cond,reqText:req,eff,req:parseReq(req),c:parseCond(cond)};
+    sk.group=sk.req.group;
+    if(!GROUPS.includes(sk.group))GROUPS.push(sk.group);
+    SKILLS.push(sk);BY_NAME[name]=sk;
+  }
+  // 現データで衝突しないソルトを選ぶ（コードに埋め込むので、後でデータが増えても復元可能）
+  for(SALT=0;SALT<256;SALT++){BY_HASH=hashMap(SALT);if(Object.values(BY_HASH).every(a=>a.length===1))break}
+  if(SALT>255){SALT=0;BY_HASH=hashMap(0)}
+}
+function hashMap(salt){const m={};for(const sk of SKILLS)(m[h16(sk.name,salt)]=m[h16(sk.name,salt)]||[]).push(sk.name);return m}
+function parseCSV(t){
+  const rows=[];let row=[],f='',q=false;
+  for(let i=0;i<t.length;i++){
+    const c=t[i];
+    if(q){if(c==='"'){if(t[i+1]==='"'){f+='"';i++}else q=false}else f+=c}
+    else if(c==='"')q=true;
+    else if(c===','){row.push(f);f=''}
+    else if(c==='\n'||c==='\r'){if(c==='\r'&&t[i+1]==='\n')i++;row.push(f);rows.push(row);row=[];f=''}
+    else f+=c;
+  }
+  if(f||row.length){row.push(f);rows.push(row)}
+  return rows;
+}
+function parseTextData(t){
+  t=String(t).replace(/^﻿/,'');
+  let rows;
+  if(/catalog-data-row/.test(t)){
+    const doc=new DOMParser().parseFromString(t,'text/html');
+    rows=[...doc.querySelectorAll('.catalog-data-row')].map(tr=>[...tr.querySelectorAll('td')].map(td=>td.textContent));
+  }else{
+    const first=t.split(/\r?\n/,1)[0];
+    rows=first.includes('\t')?t.split(/\r?\n/).map(l=>l.split('\t')):first.includes('|')?t.split(/\r?\n/).map(l=>l.split('|')):parseCSV(t);
+  }
+  return rows.map(a=>a.slice(0,4).map(norm)).filter(a=>a.length===4&&a[0]&&a[0]!=='スキル名');
+}
+function toCSV(rows){
+  const q=s=>/[",\r\n]/.test(s)?'"'+s.replace(/"/g,'""')+'"':s;
+  return '﻿'+[['スキル名','使用条件','取得条件','効果'],...rows].map(r=>r.map(q).join(',')).join('\r\n')+'\r\n';
+}
+
+/* ---------- データ取得・キャッシュ（毎日 6:00 / 18:00 JST に更新） ---------- */
+const H12=12*3600e3,OFS=9*3600e3; // 6:00 JST = 21:00 UTC, 18:00 JST = 09:00 UTC
+const lastBoundary=(t=Date.now())=>Math.floor((t-OFS)/H12)*H12+OFS;
+const nextBoundary=(t=Date.now())=>lastBoundary(t)+H12;
+const fmtTime=t=>{const d=new Date(t);return `${d.getMonth()+1}/${d.getDate()} ${String(d.getHours()).padStart(2,'0')}:${String(d.getMinutes()).padStart(2,'0')}`};
+function builtinData(){const el=$('#skill-data');return{rows:parseTextData(el.textContent),at:Date.parse(el.dataset.built)||0,src:'builtin'}}
+function loadData(){
+  const b=builtinData();let c=null;
+  try{c=JSON.parse(ls.get(LS_CACHE))}catch(e){}
+  DATA=(c&&Array.isArray(c.rows)&&c.rows.length>=MIN_ROWS&&c.at>=b.at)?c:b;
+  buildSkills(DATA.rows);
+}
+const needRefresh=()=>!DATA||DATA.src==='builtin'||DATA.at<lastBoundary()||(HOSTED&&DATA.src!=='csv');
+function setData(rows,src,label,quiet){
+  if(!rows||rows.length<MIN_ROWS){if(!quiet)toast(`スキル行が少なすぎるため不採用（${rows?rows.length:0}件）`);return false}
+  const same=DATA&&JSON.stringify(DATA.rows)===JSON.stringify(rows);
+  const before=new Set(SKILLS.map(s=>s.name));
+  DATA={rows,at:Date.now(),src,label:label||''};
+  ls.set(LS_CACHE,JSON.stringify(DATA));
+  if(same){renderDataStatus();if(!quiet)toast('スキル一覧に変更はありません');return true}
+  buildSkills(rows);setupFilters();
+  const after=new Set(SKILLS.map(s=>s.name));
+  const add=[...after].filter(n=>!before.has(n)),del=[...before].filter(n=>!after.has(n));
+  toast(`スキル一覧を更新（${SKILLS.length}件`+(add.length?` / 追加${add.length}`:'')+(del.length?` / 削除${del.length}`:'')+'）');
+  if(add.length)console.info('[LA sim] 追加スキル',add);
+  if(del.length)console.info('[LA sim] 削除スキル',del);
+  renderAll();return true;
+}
+// ExcelでCSV保存するとShift_JISになることがあるので、UTF-8で読めなければShift_JISで読み直す
+function decodeBytes(buf){try{return new TextDecoder('utf-8',{fatal:true}).decode(buf)}catch(e){return new TextDecoder('shift_jis').decode(buf)}}
+const fetchCSV=()=>fetch('skills.csv',{cache:'no-store'}).then(r=>r.ok?r.arrayBuffer():Promise.reject(new Error('HTTP '+r.status))).then(b=>parseTextData(decodeBytes(b)));
+function requestRefresh(force){
+  if(!force&&!needRefresh())return;
+  if(HOSTED){fetchCSV().then(rows=>setData(rows,'csv','',!force)).catch(e=>{BRIDGE_MSG='skills.csv 取得失敗：'+e.message;renderDataStatus()});return}
+  if(BRIDGE){BRIDGE_MSG='取得中…';renderDataStatus();window.postMessage({type:'la-sim:request',force:!!force},'*');return}
+  if(force)toast('連携スクリプトが動いていません（「自動取得の設定」参照）');
+}
+window.addEventListener('message',e=>{
+  const d=e.data;if(!d||typeof d!=='object'||typeof d.type!=='string'||!d.type.startsWith('la-sim:'))return;
+  if(d.type==='la-sim:bridge-ready'){BRIDGE=true;BRIDGE_MSG='';renderDataStatus();if(!HOSTED)window.postMessage({type:'la-sim:request',force:false},'*')} // 配信時は skills.csv が正
+  else if(d.type==='la-sim:skills'&&Array.isArray(d.rows)&&!HOSTED){
+    BRIDGE_MSG='';
+    const rows=d.rows.filter(r=>Array.isArray(r)&&r.length>=4).map(r=>r.slice(0,4).map(norm));
+    const same=DATA&&JSON.stringify(DATA.rows)===JSON.stringify(rows);
+    if(same){DATA.at=Math.max(DATA.at,+d.at||Date.now());DATA.src='game';ls.set(LS_CACHE,JSON.stringify(DATA));renderDataStatus()}
+    else setData(rows,'game');
+  }
+  else if(d.type==='la-sim:error'){BRIDGE_MSG='取得失敗：'+String(d.msg||'');renderDataStatus()}
+});
+function scheduleRefresh(){
+  const wait=nextBoundary()-Date.now()+5000+Math.random()*55000;
+  setTimeout(()=>{requestRefresh(false);scheduleRefresh()},Math.min(wait,2**31-1));
+}
+document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='visible')requestRefresh(false)});
+function renderDataStatus(){
+  if(!DATA)return;
+  const src=SRC_LABEL[DATA.src]||DATA.src;
+  $('#data-info').textContent=`スキル${SKILLS.length}件・${src}（${fmtTime(DATA.at)}）`;
+  $('#data-status').innerHTML=`
+    <div>現在：<b>${esc(src)}</b>${DATA.label?'（'+esc(DATA.label)+'）':''} ${SKILLS.length}件 ／ ${fmtTime(DATA.at)}時点</div>
+    <div>${HOSTED?'配信元：同じ場所の skills.csv（開くたびに読み直し）':`連携スクリプト：${BRIDGE?'<span class="pos">有効</span>':'<span class="muted">未検出</span>'} ／ 次回更新：${fmtTime(nextBoundary())}${needRefresh()?' <span class="b warn">更新待ち</span>':''}`}</div>
+    ${BRIDGE_MSG?`<div class="${/失敗/.test(BRIDGE_MSG)?'neg':''}">${esc(BRIDGE_MSG)}</div>`:''}`;
+}
+
+/* ---------- ビルドコード（短縮共有） ---------- */
+// FNV-1a 32bit → 1..65535。スキル名基準なので一覧の並び替え・追加に強い
+function h16(s,salt=0){let h=(0x811c9dc5^Math.imul(salt,0x9e3779b1))>>>0;for(const ch of s){h^=ch.codePointAt(0);h=Math.imul(h,0x01000193)>>>0}return((h^(h>>>16))&0xffff)%65535+1}
+const B64='ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_';
+function b64e(bytes){let s='',bits=0,v=0;for(const b of bytes){v=(v<<8)|b;bits+=8;while(bits>=6){bits-=6;s+=B64[(v>>bits)&63]}v&=(1<<bits)-1}if(bits)s+=B64[(v<<(6-bits))&63];return s}
+function b64d(s){const out=[];let bits=0,v=0;for(const c of s){const i=B64.indexOf(c);if(i<0)throw new Error('bad char');v=(v<<6)|i;bits+=6;if(bits>=8){bits-=8;out.push((v>>bits)&255)}v&=(1<<bits)-1}return out}
+function decodeBuild(code){
+  const b=b64d(code);let p=0;const rd=()=>{if(p>=b.length)throw new Error('short');return b[p++]};
+  const vi=()=>{let n=0,s=0,x;do{x=rd();n|=(x&127)<<s;s+=7}while(x&128);return n};
+  if(rd()!==2)throw new Error('version');
+  const salt=rd(),map=salt===SALT?BY_HASH:hashMap(salt);
+  const o=defState(),rw=rd();o.role=ROLES[rw>>4]||'SUP';o.waku=rw&15;
+  const bm=rd();o.books=BOOKS.filter((x,i)=>bm&(1<<i));
+  o.lv=vi();o.stp=vi();STATS.forEach(([k])=>o.st[k]=vi());
+  let miss=0;
+  while(p+1<b.length){
+    const h=(rd()<<8)|rd();
+    if(!h){o.slots.push(null);continue}
+    const c=map[h];if(!c){o.slots.push(null);miss++;continue}
+    o.slots.push(c[0]);
+  }
+  const res=sanitize(o);
+  // ハッシュ衝突時は、そのビルドで取得可能な候補を優先
+  res.slots=res.slots.map((n,i)=>{if(!n)return n;const c=map[h16(n,salt)];if(c.length<2)return n;const keep=S;S=res;const ok=c.find(x=>evalSkill(BY_NAME[x]).ok);S=keep;return ok||n});
+  return{state:res,miss};
+}
+/* ---------- ビルドコード v3 ----------
+  ・全項目を「値と基数」の列にし、BigIntで1つの整数に畳み込む（混合基数）
+  ・数値はElias-γ符号（0なら1bit、50で11bit）
+  ・スキルは「スキル名のハッシュ」の下位bビット。b とソルトは、そのビルドで取得可能なスキル同士が
+    衝突しない最小値をビルドごとに探す（完全ハッシュ）。候補が80件なら約10bit/枠
+    → スキル名で引くので、CSVにスキルが追加・並べ替えされても既存コードは壊れない
+  ・最後に漢字1文字＝14bit（U+4E00〜U+8DFF）、URL用は英数62進で文字列化 */
+const KANJI0=0x4E00,KBASE=16384,B62='0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz';
+function packer(){
+  const f=[];
+  const o={
+    put(v,r){if(r<=1)return;if(!(v>=0&&v<r))throw new Error('range');f.push([BigInt(v),BigInt(r)])},
+    gam(v){const x=Math.max(0,v|0)+1,b=31-Math.clz32(x);for(let j=0;j<b;j++)o.put(1,2);o.put(0,2);o.put(x-2**b,2**b)},
+    big(){let N=0n;for(let i=f.length-1;i>=0;i--)N=N*f[i][1]+f[i][0];return N}
+  };return o;
+}
+function unpacker(N){
+  const o={
+    get(r){if(r<=1)return 0;const R=BigInt(r),v=N%R;N/=R;return Number(v)},
+    gam(){let b=0;while(o.get(2)===1)if(++b>24)throw new Error('gam');return 2**b+o.get(2**b)-1},
+    done:()=>N===0n
+  };return o;
+}
+const toDigits=(N,B)=>{const d=[],b=BigInt(B);while(N>0n){d.push(Number(N%b));N/=b}return d};
+const fromDigits=(d,B)=>{let N=0n;const b=BigInt(B);for(let i=d.length-1;i>=0;i--)N=N*b+BigInt(d[i]);return N};
+const usedOf=st=>statPoints(st.st)*3+wakuCost(st.waku);
+function candList(st,all){
+  const keep=S;S=st;
+  try{return SKILLS.filter(sk=>all||evalSkill(sk,st.st).ok).map(s=>s.name).sort()}finally{S=keep}
+}
+function h32(s,salt){ // FNV-1a + murmur3 fmix32
+  let h=(0x811c9dc5^Math.imul(salt+1,0x9e3779b1))>>>0;
+  for(const ch of s){h^=ch.codePointAt(0);h=Math.imul(h,0x01000193)>>>0}
+  h^=h>>>16;h=Math.imul(h,0x85ebca6b)>>>0;h^=h>>>13;h=Math.imul(h,0xc2b2ae35)>>>0;h^=h>>>16;return h>>>0;
+}
+const hb=(s,salt,b)=>h32(s,salt)&((1<<b)-1);
+function perfectHash(names){
+  for(let b=Math.max(4,Math.ceil(Math.log2(names.length+1)));b<=20;b++)
+    for(let salt=0;salt<256;salt++){const seen=new Set();let ok=true;for(const n of names){const v=hb(n,salt,b);if(seen.has(v)){ok=false;break}seen.add(v)}if(ok)return{b,salt}}
+  throw new Error('hash');
+}
+function packBuild(st=S){
+  const P=packer(),n=BASE_SLOTS+st.waku;
+  P.put(1,4);P.put(ROLES.indexOf(st.role),4);P.put(st.waku,MAX_WAKU+1);
+  const bm=BOOKS.reduce((m,x,i)=>st.books.includes(x)?m|(1<<i):m,0);
+  P.put(bm?1:0,2);if(bm)P.put(bm,256);
+  P.gam(st.lv-1);STATS.forEach(([k])=>P.gam(st.st[k]));
+  const r=st.stp-usedOf(st);P.put(r<0?1:0,2);P.gam(Math.abs(r));
+  const sl=st.slots.slice(0,n).map(x=>x&&BY_NAME[x]?x:null);while(sl.length&&!sl[sl.length-1])sl.pop();
+  P.put(sl.length,n+1);
+  if(sl.length){
+    const acq=candList(st,false),all=sl.some(x=>x&&!acq.includes(x)),cand=all?candList(st,true):acq;
+    const{b,salt}=perfectHash(cand);
+    P.put(all?1:0,2);P.put(b-4,17);P.put(salt,256);
+    for(const x of sl)P.put(x?hb(x,salt,b)+1:0,(1<<b)+1);
+  }
+  return P.big();
+}
+function unpackBuild(N){
+  const U=unpacker(N);
+  if(U.get(4)!==1)throw new Error('version');
+  const o=defState();o.role=ROLES[U.get(4)];o.waku=U.get(MAX_WAKU+1);
+  if(U.get(2)){const bm=U.get(256);o.books=BOOKS.filter((x,i)=>bm&(1<<i))}
+  o.lv=U.gam()+1;STATS.forEach(([k])=>o.st[k]=U.gam());
+  const neg=U.get(2),ra=U.gam();o.stp=Math.max(0,usedOf(o)+(neg?-ra:ra));
+  const n=BASE_SLOTS+o.waku,k=U.get(n+1);let miss=0,warn=false;
+  if(k){
+    const all=U.get(2),b=U.get(17)+4,salt=U.get(256),cand=candList(o,!!all);
+    const map={};for(const x of cand)(map[hb(x,salt,b)]=map[hb(x,salt,b)]||[]).push(x);
+    for(let i=0;i<k;i++){
+      const v=U.get((1<<b)+1);if(!v){o.slots.push(null);continue}
+      const c=(map[v-1]||[]).filter(x=>!o.slots.includes(x));
+      if(!c.length){o.slots.push(null);miss++;continue}
+      if(c.length>1)warn=true; // データ追加で偶然衝突（まれ）
+      o.slots.push(c[0]);
+    }
+  }
+  if(!U.done())throw new Error('trailing');
+  return{state:sanitize(o),miss,warn};
+}
+const encodeKanji=(st=S)=>toDigits(packBuild(st),KBASE).map(d=>String.fromCharCode(KANJI0+d)).join('');
+const encodeB62=(st=S)=>toDigits(packBuild(st),62).map(d=>B62[d]).join('');
+const fromB62=t=>fromDigits([...t].map(c=>{const i=B62.indexOf(c);if(i<0)throw new Error('char');return i}),62);
+function readCode(text){
+  text=String(text||'').trim();let m;
+  try{text=decodeURIComponent(text)}catch(e){}
+  if(m=text.match(/#s=([0-9A-Za-z]+)/))return unpackBuild(fromB62(m[1]));
+  if(m=text.match(/[#&?]c=([\w-]+)/))return decodeBuild(m[1]);            // v2
+  if(m=text.match(/#b=([\w-]+)/))return{state:sanitize(dec(m[1])),miss:0}; // v1
+  const runs=text.match(/[一-跿]+/g);
+  if(runs){const r=runs.sort((a,b)=>b.length-a.length)[0];return unpackBuild(fromDigits([...r].map(c=>c.codePointAt(0)-KANJI0),KBASE))}
+  if(/^[0-9A-Za-z]+$/.test(text)){try{return unpackBuild(fromB62(text))}catch(e){}}
+  return decodeBuild(text);
+}
+const shareUrl=()=>(HOSTED?location.href.split('#')[0]:SHARE_BASE)+'#s='+encodeB62();
+const codeMsg=r=>(r.miss?`（不明スキル${r.miss}件は空き扱い）`:'')+(r.warn?'（スキル追加の影響で一部の枠が曖昧。確認してください）':'');
+
+/* ---------- 状態 ---------- */
+function defState(){return{role:'SUP',lv:1,stp:0,st:{atk:0,agi:0,dex:0,def:0,mnd:0,luk:0},waku:0,books:[],slots:[],wish:[]}}
+function sanitize(o){
+  const d=defState();if(!o||typeof o!=='object')return d;
+  if(ROLES.includes(o.role))d.role=o.role;
+  d.lv=clamp(int(o.lv)||1,1,MAX_LV);d.stp=clamp(int(o.stp),0,99999);
+  for(const[k]of STATS)d.st[k]=clamp(int(o.st&&o.st[k]),0,999);
+  d.waku=clamp(int(o.waku),0,MAX_WAKU);
+  d.books=Array.isArray(o.books)?o.books.filter(b=>BOOKS.includes(b)):[];
+  d.slots=Array.isArray(o.slots)?o.slots.slice(0,MAX_SLOTS).map(x=>typeof x==='string'&&x?x:null):[];
+  d.wish=Array.isArray(o.wish)?[...new Set(o.wish.filter(x=>typeof x==='string'))]:[];
+  return d;
+}
+let S=defState();
+const dec=t=>{t=t.replace(/-/g,'+').replace(/_/g,'/');const s=atob(t);return JSON.parse(new TextDecoder().decode(Uint8Array.from(s,c=>c.charCodeAt(0))))};
+
+/* ---------- 計算 ---------- */
+const wakuCost=n=>WAKU_COST.slice(0,n).reduce((a,b)=>a+b,0);
+const statPoints=(st=S.st)=>STATS.reduce((a,[k])=>a+st[k],0);
+const usedStp=()=>statPoints()*3+wakuCost(S.waku);
+const remain=()=>S.stp-usedStp();
+const slotCount=()=>BASE_SLOTS+S.waku;
+function evalSkill(sk,st=S.st){
+  const r=sk.req,blockers=[],need={};
+  if(r.kind==='role'){if(S.role!==r.role)blockers.push(r.role+'専用');else if(S.lv<r.lv)blockers.push('Lv'+r.lv+'以上');}
+  else if(r.kind==='book'){if(r.role&&S.role!==r.role)blockers.push(r.role+'専用');if(!S.books.includes(r.book))blockers.push('本【'+r.book+'】');}
+  else if(r.kind==='stat'){for(const k in r.need){const d=r.need[k]-(st[k]||0);if(d>0)need[k]=d}}
+  else if(r.kind==='unknown')blockers.push('条件解析不能');
+  const pts=Object.values(need).reduce((a,b)=>a+b,0);
+  return{ok:!blockers.length&&!pts,blockers,need,cost:pts*3};
+}
+const lackText=ev=>[...ev.blockers,...Object.entries(ev.need).map(([k,v])=>KEY2JA[k]+'+'+v)].join(' / ');
+function nextUnlock(k){
+  let best=null;
+  for(const sk of SKILLS){
+    if(sk.req.kind!=='stat'||Object.keys(sk.req.need).length!==1||!(k in sk.req.need))continue;
+    const th=sk.req.need[k];if(th<=S.st[k])continue;
+    if(!best||th<best.th)best={th,names:[sk.name]};else if(th===best.th)best.names.push(sk.name);
+  }
+  return best;
+}
+function sortKey(name,idx){
+  const sk=name&&BY_NAME[name];
+  const k={empty:sk?0:1,isPassive:0,nth:0,per:0,cp:0,slv:0,po:PASSIVE_ORDER.length+100,idx};
+  if(!sk)return k;
+  if(!sk.c.active){k.isPassive=1;const p=PASSIVE_ORDER.indexOf(sk.c.trig);if(p>=0)k.po=p;}
+  else{k.slv=sk.c.slv;k.nth=sk.c.nth;k.per=sk.c.per;k.cp=sk.c.injured?1:0;}
+  return k;
+}
+function cmpKey(a,b){
+  return(a.empty-b.empty)||(a.isPassive-b.isPassive)||(b.nth-a.nth)||(b.per-a.per)||(b.cp-a.cp)||(b.slv-a.slv)||(a.po-b.po)||(a.idx-b.idx);
+}
+function lintSlots(){
+  const n=slotCount(),res=[];let minAlways=Infinity,act=0,pas=0,hasSlv0=false;const trig={};const dup=new Set(),seen=new Set();
+  for(let i=0;i<n;i++){
+    const name=S.slots[i],b=[];const sk=name&&BY_NAME[name];
+    if(name&&!sk)b.push(['bad','データに無いスキル']);
+    if(name){if(seen.has(name)){b.push(['bad','重複']);dup.add(name)}seen.add(name)}
+    if(sk){
+      const ev=evalSkill(sk);if(!ev.ok)b.push(['bad','未取得：'+lackText(ev)]);
+      if(sk.c.active){
+        act++;
+        if(sk.c.slv>=minAlways)b.push(['warn','到達不能（上にSLv'+minAlways+'通常時）']);
+        if(sk.c.always){minAlways=Math.min(minAlways,sk.c.slv);if(sk.c.slv===0)hasSlv0=true}
+      }else{pas++;trig[sk.c.trig]=(trig[sk.c.trig]||0)+1}
+    }
+    res.push(b);
+  }
+  return{res,act,pas,trig,hasSlv0};
+}
+
+/* ---------- 描画 ---------- */
+function renderBasics(){
+  $('#in-role').value=S.role;$('#in-lv').value=S.lv;
+  if(document.activeElement!==$('#in-stp'))$('#in-stp').value=S.stp;
+  const r=remain();
+  $('#out-remain').textContent=r;$('#out-remain').classList.toggle('neg',r<0);
+  $('#out-used').textContent=`使用 ${usedStp()}（能力値 ${statPoints()*3} ＋ 枠 ${wakuCost(S.waku)}）/ ${S.stp}`+(r<0?' ― STP超過':'');
+}
+function renderStats(){
+  for(const[k]of STATS){
+    const inp=$('#st-'+k);if(document.activeElement!==inp)inp.value=S.st[k];
+    const nx=nextUnlock(k);
+    $('#nx-'+k).innerHTML=nx?`あと${nx.th-S.st[k]}で ${esc(nx.names.join('・'))}`:'単系統は全解放';
+    $('#nx-'+k).title=nx?`${KEY2JA[k]}${nx.th}到達に${(nx.th-S.st[k])*3}STP`:'';
+  }
+  $('#in-waku').value=S.waku;
+  const nextCost=S.waku<MAX_WAKU?WAKU_COST[S.waku]:null;
+  $('#out-waku').textContent=`計${slotCount()}枠（枠に${wakuCost(S.waku)}STP）`+(nextCost?`／次の枠は${nextCost}STP`:'／上限');
+  document.querySelectorAll('#books input').forEach(c=>c.checked=S.books.includes(c.value));
+}
+function skillOptions(cur,used){
+  let h='<option value="">（空き）</option>',g=null;
+  for(const sk of SKILLS){
+    const ev=evalSkill(sk);
+    if(sk.name!==cur&&(!ev.ok||used.has(sk.name)))continue;
+    if(sk.group!==g){if(g!==null)h+='</optgroup>';g=sk.group;h+=`<optgroup label="${esc(g)}">`}
+    h+=`<option value="${esc(sk.name)}"${sk.name===cur?' selected':''}>${ev.ok?'':'✗ '}${esc(sk.name)}</option>`;
+  }
+  if(g!==null)h+='</optgroup>';
+  if(cur&&!BY_NAME[cur])h+=`<option value="${esc(cur)}" selected>✗ ${esc(cur)}</option>`;
+  return h;
+}
+function renderSlots(){
+  const n=slotCount(),L=lintSlots();
+  $('#slot-count').textContent=`${S.slots.slice(0,n).filter(Boolean).length}/${n}枠（初期${BASE_SLOTS}＋追加${S.waku}）`;
+  let h='';
+  for(let i=0;i<n;i++){
+    const name=S.slots[i]||null,sk=name&&BY_NAME[name];
+    const used=new Set(S.slots.slice(0,n).filter((x,j)=>x&&j!==i));
+    const bad=L.res[i].some(b=>b[0]==='bad');
+    h+=`<div class="slot${bad?' over':''}" data-i="${i}">
+      <span class="no">${i+1}.</span>
+      <select data-act="pick">${skillOptions(name,used)}</select>
+      <span class="ops"><button class="sm" data-act="up"${i===0?' disabled':''}>↑</button><button class="sm" data-act="down"${i===n-1?' disabled':''}>↓</button><button class="sm" data-act="rm"${name?'':' disabled'}>×</button></span>
+      ${sk?`<div class="desc"><span class="b ${sk.c.active?'act':'pas'}">${sk.c.active?'A':'P'}</span>【${esc(sk.cond)}】${esc(sk.eff)}</div>`:''}
+      ${L.res[i].length?`<div class="bd">${L.res[i].map(([c,t])=>`<span class="b ${c}">${esc(t)}</span>`).join('')}</div>`:''}
+    </div>`;
+  }
+  $('#slots').innerHTML=h;
+  const notes=[];
+  const over=S.slots.slice(n).filter(Boolean);
+  if(over.length)notes.push(`<div class="neg">枠外に残っているスキル：${esc(over.join('、'))}（枠を増やすと戻ります）</div>`);
+  notes.push(`<div>アクティブ ${L.act} ／ パッシブ ${L.pas}</div>`);
+  const tr=Object.entries(L.trig).sort((a,b)=>PASSIVE_ORDER.indexOf(a[0])-PASSIVE_ORDER.indexOf(b[0]));
+  if(tr.length)notes.push(`<div class="muted">パッシブ内訳：${tr.map(([t,c])=>esc(t)+'×'+c).join('、')}</div>`);
+  if(L.act&&!L.hasSlv0)notes.push(`<div><span class="b warn">注意</span>「SLv0以上/通常時」のアクティブがありません。条件を満たすアクティブが無い行動が発生します。</div>`);
+  if(!L.act)notes.push(`<div><span class="b warn">注意</span>アクティブスキルが設定されていません。</div>`);
+  $('#slot-notes').innerHTML=notes.join('');
+}
+function renderList(){
+  const q=norm($('#f-q').value).toLowerCase(),mode=$('#f-mode').value,typ=$('#f-type').value,trig=$('#f-trig').value,grp=$('#f-group').value;
+  const rem=remain(),slotted=new Set(S.slots.slice(0,slotCount()).filter(Boolean)),wish=new Set(S.wish);
+  let h='',cur=null,shown=0,okCount=0;
+  for(const sk of SKILLS){
+    const ev=evalSkill(sk);if(ev.ok)okCount++;
+    if(grp&&sk.group!==grp)continue;
+    if((typ==='active'&&!sk.c.active)||(typ==='passive'&&sk.c.active))continue;
+    if(trig&&sk.c.tag!==trig)continue;
+    if(mode==='ok'&&!ev.ok)continue;
+    if(mode==='ng'&&ev.ok)continue;
+    if(mode==='afford'&&(ev.ok||ev.blockers.length||ev.cost>rem))continue;
+    if(mode==='wish'&&!wish.has(sk.name))continue;
+    if(q&&!(sk.name+' '+sk.cond+' '+sk.reqText+' '+sk.eff).toLowerCase().includes(q))continue;
+    shown++;
+    if(sk.group!==cur){cur=sk.group;h+=`<tr class="gh"><td colspan="6">${esc(cur)}</td></tr>`}
+    let st;
+    if(ev.ok)st='<span class="b ok">取得可</span>';
+    else if(ev.blockers.length)st=`<span class="b ng">${esc(lackText(ev))}</span>`;
+    else st=`<span class="b lack">${esc(lackText(ev))}（${ev.cost}STP）</span><button class="sm" data-act="alloc" title="不足分だけ振る">振る</button>`;
+    const isSl=slotted.has(sk.name);
+    h+=`<tr class="${ev.ok?'ok':'ng'}${isSl?' slotted':''}" data-n="${esc(sk.name)}">
+      <td class="st">${st}</td>
+      <td class="nm"><button class="star${wish.has(sk.name)?' on':''}" data-act="wish" title="欲しいスキルに追加">${wish.has(sk.name)?'★':'☆'}</button>${esc(sk.name)}</td>
+      <td class="cd"><span class="b ${sk.c.active?'act':'pas'}">${sk.c.active?'A':'P'}</span>${esc(sk.cond)}</td>
+      <td class="rq">${esc(sk.reqText)}</td>
+      <td class="ef">${esc(sk.eff)}</td>
+      <td>${isSl?'<button class="sm" data-act="unslot">外す</button>':`<button class="sm" data-act="slot"${ev.ok?'':' disabled'}>枠へ</button>`}</td></tr>`;
+  }
+  $('#list-body').innerHTML=h||'<tr><td colspan="6" class="muted">該当なし</td></tr>';
+  $('#list-count').textContent=`表示 ${shown} ／ 取得可能 ${okCount} ／ 全 ${SKILLS.length}`;
+}
+function wishCalc(){
+  const req={atk:0,agi:0,dex:0,def:0,mnd:0,luk:0},blockers=new Set();
+  const list=S.wish.map(n=>BY_NAME[n]).filter(Boolean);
+  for(const sk of list){
+    const r=sk.req;
+    if(r.kind==='stat')for(const k in r.need)req[k]=Math.max(req[k],r.need[k]);
+    const ev=evalSkill(sk,req);ev.blockers.forEach(b=>blockers.add(sk.name+'：'+b));
+  }
+  const wakuNeed=clamp(list.length-BASE_SLOTS,0,MAX_WAKU);
+  const cost=statPoints(req)*3+wakuCost(wakuNeed);
+  return{req,blockers:[...blockers],wakuNeed,cost,list,tooMany:list.length>MAX_SLOTS};
+}
+function renderWish(){
+  const w=wishCalc();
+  if(!w.list.length){$('#wish-out').innerHTML='<div class="muted">一覧の☆を押すと、それらを全部取得するのに必要な能力値・枠・STPを計算します。</div>';return}
+  const diff=S.stp-w.cost;
+  $('#wish-out').innerHTML=`
+    <div>☆ ${w.list.length}件：${esc(w.list.map(s=>s.name).join('、'))}</div>
+    <div>必要能力値：${STATS.filter(([k])=>w.req[k]).map(([k,j])=>j+w.req[k]).join(' ')||'なし'}</div>
+    <div>必要枠：追加${w.wakuNeed}（計${BASE_SLOTS+w.wakuNeed}枠）${w.tooMany?' <span class="neg">※最大12枠を超過</span>':''}</div>
+    <div>必要STP：<b>${w.cost}</b>（使用可能${S.stp} → <span class="${diff<0?'neg':'pos'}">${diff>=0?'余り'+diff:'不足'+(-diff)}</span>）</div>
+    ${w.blockers.length?`<div class="neg">STP以外の条件：${esc(w.blockers.join('、'))}</div>`:''}
+    <div class="row"><button class="pri" id="btn-wish-apply">この振り方を適用</button><button id="btn-wish-clear">☆を全解除</button></div>`;
+}
+function exportText(){
+  const n=slotCount();
+  const lines=[`【LAビルド】${S.role} Lv${S.lv} ／ STP ${usedStp()}/${S.stp}（残り${remain()}）`,
+    STATS.map(([k,j])=>j+S.st[k]).join(' ')+` ／ スキル枠${n}（追加${S.waku}）`];
+  if(S.books.length)lines.push('スキルブック：'+S.books.join('・'));
+  lines.push('');
+  for(let i=0;i<n;i++){const nm=S.slots[i];const sk=nm&&BY_NAME[nm];lines.push(`${i+1}. `+(sk?`${sk.name}【${sk.cond}】${sk.eff}`:(nm||'（空き）')))}
+  lines.push('','ビルドコード：'+encodeKanji(),shareUrl());
+  return lines.join('\n');
+}
+function persist(){ls.set(LS_STATE,JSON.stringify(S))}
+function renderAll(){
+  renderBasics();renderStats();renderSlots();renderList();renderWish();renderDataStatus();
+  $('#export-area').value=exportText();
+  const c=encodeKanji();$('#code-preview').textContent=`コード（${c.length}文字）：${c}`;
+  persist();
+}
+
+/* ---------- 操作 ---------- */
+function addToSlot(name){
+  const n=slotCount();
+  if(S.slots.slice(0,n).includes(name))return toast('既に設定済み');
+  for(let i=0;i<n;i++){if(!S.slots[i]){S.slots[i]=name;return toast(`${i+1}枠目に設定`)}}
+  toast('空き枠がありません');
+}
+function compactSlots(){const n=slotCount();const a=S.slots.slice(0,n);while(a.length<n)a.push(null);S.slots=a.concat(S.slots.slice(n))}
+function refreshPresets(){
+  let p={};try{p=JSON.parse(ls.get(LS_PRESETS)||'{}')}catch(e){}
+  $('#preset-sel').innerHTML=Object.keys(p).length?Object.keys(p).map(k=>`<option>${esc(k)}</option>`).join(''):'<option value="">（保存なし）</option>';
+  return p;
+}
+async function copyText(t){
+  try{await navigator.clipboard.writeText(t)}catch(e){const ta=document.createElement('textarea');ta.value=t;document.body.appendChild(ta);ta.select();document.execCommand('copy');ta.remove()}
+  toast('コピーしました');
+}
+
+function setupFilters(){
+  const tags=[...new Set(SKILLS.map(s=>s.c.tag))].sort((a,b)=>{
+    const ia=a.startsWith('アクティブ')?-1:PASSIVE_ORDER.indexOf(a),ib=b.startsWith('アクティブ')?-1:PASSIVE_ORDER.indexOf(b);
+    return ia-ib||a.localeCompare(b,'ja')});
+  const t=$('#f-trig').value,g=$('#f-group').value;
+  $('#f-trig').innerHTML='<option value="">発動条件</option>'+tags.map(x=>`<option>${esc(x)}</option>`).join('');
+  $('#f-group').innerHTML='<option value="">区分</option>'+GROUPS.map(x=>`<option>${esc(x)}</option>`).join('');
+  $('#f-trig').value=tags.includes(t)?t:'';$('#f-group').value=GROUPS.includes(g)?g:'';
+}
+async function init(){
+  loadData();
+  if(HOSTED){
+    try{const rows=await Promise.race([fetchCSV(),new Promise((_,j)=>setTimeout(()=>j(new Error('タイムアウト')),5000))]);
+      if(rows.length>=MIN_ROWS){DATA={rows,at:Date.now(),src:'csv',label:''};ls.set(LS_CACHE,JSON.stringify(DATA));buildSkills(rows)}
+      else BRIDGE_MSG='skills.csv 取得失敗：行数不足';}
+    catch(e){BRIDGE_MSG='skills.csv 取得失敗：'+e.message+'（キャッシュ/内蔵データで表示中）'}
+  }
+  $('#in-lv').innerHTML=Array.from({length:MAX_LV},(_,i)=>`<option value="${i+1}">Lv${i+1}</option>`).join('');
+  $('#in-waku').innerHTML=Array.from({length:MAX_WAKU+1},(_,i)=>`<option value="${i}">+${i}（計${BASE_SLOTS+i}枠・${wakuCost(i)}STP）</option>`).join('');
+  $('#stat-body').innerHTML=STATS.map(([k,j])=>`<tr><th>${j}</th><td class="pm">
+    <button data-k="${k}" data-d="-5">−5</button><button data-k="${k}" data-d="-1">−</button><input type="number" id="st-${k}" min="0" max="999"><button data-k="${k}" data-d="1">＋</button><button data-k="${k}" data-d="5">+5</button>
+    </td><td class="nx" id="nx-${k}"></td></tr>`).join('');
+  $('#books').innerHTML=BOOKS.map(b=>`<label><input type="checkbox" value="${b}"> ${b}</label>`).join('');
+  setupFilters();
+
+  // 状態復元：URL > 自動保存
+  let fromUrl=false;
+  if(/#[bcs]=/.test(location.hash)){try{const r=readCode(location.hash);S=r.state;fromUrl=true;toast('共有URLのビルドを読み込みました'+codeMsg(r))}catch(e){toast('共有URLのビルドを読めませんでした')}}
+  if(!fromUrl){try{S=sanitize(JSON.parse(ls.get(LS_STATE)))}catch(e){S=defState()}}
+  refreshPresets();
+
+  $('#in-role').onchange=e=>{S.role=e.target.value;renderAll()};
+  $('#in-lv').onchange=e=>{S.lv=int(e.target.value);renderAll()};
+  $('#in-stp').oninput=e=>{S.stp=clamp(int(e.target.value),0,99999);renderAll()};
+  $('#in-waku').onchange=e=>{S.waku=int(e.target.value);compactSlots();renderAll()};
+  $('#stat-body').addEventListener('click',e=>{const b=e.target.closest('button[data-k]');if(!b)return;const k=b.dataset.k;S.st[k]=clamp(S.st[k]+int(b.dataset.d),0,999);renderAll()});
+  $('#stat-body').addEventListener('input',e=>{const k=e.target.id.replace('st-','');if(!(k in S.st))return;S.st[k]=clamp(int(e.target.value),0,999);renderAll()});
+  $('#books').addEventListener('change',()=>{S.books=[...document.querySelectorAll('#books input:checked')].map(c=>c.value);renderAll()});
+  $('#btn-refund').onclick=()=>{STATS.forEach(([k])=>S.st[k]=0);renderAll()};
+  $('#btn-fill-waku').onclick=()=>{let added=0;while(S.waku<MAX_WAKU&&remain()>=WAKU_COST[S.waku]){S.waku++;added++}compactSlots();toast(added?`枠を${added}つ追加`:'追加できる枠がありません');renderAll()};
+
+  $('#slots').addEventListener('change',e=>{const s=e.target.closest('[data-i]');if(!s||e.target.dataset.act!=='pick')return;S.slots[int(s.dataset.i)]=e.target.value||null;renderAll()});
+  $('#slots').addEventListener('click',e=>{
+    const b=e.target.closest('button[data-act]');if(!b)return;const i=int(b.closest('[data-i]').dataset.i);const a=S.slots;
+    if(b.dataset.act==='up'&&i>0)[a[i-1],a[i]]=[a[i]||null,a[i-1]||null];
+    if(b.dataset.act==='down')[a[i+1],a[i]]=[a[i]||null,a[i+1]||null];
+    if(b.dataset.act==='rm')a[i]=null;
+    renderAll();
+  });
+  $('#btn-autosort').onclick=()=>{const n=slotCount();const head=S.slots.slice(0,n);while(head.length<n)head.push(null);
+    const sorted=head.map((x,i)=>({x,k:sortKey(x,i)})).sort((a,b)=>cmpKey(a.k,b.k)).map(o=>o.x);
+    S.slots=sorted.concat(S.slots.slice(n));renderAll();toast('並べ替えました')};
+  $('#btn-clear-slots').onclick=()=>{if(confirm('スキル設定を全て空にしますか？')){S.slots=[];renderAll()}};
+
+  ['#f-q','#f-mode','#f-type','#f-trig','#f-group'].forEach(s=>$(s).addEventListener(s==='#f-q'?'input':'change',renderList));
+  $('#list-body').addEventListener('click',e=>{
+    const b=e.target.closest('button[data-act]');if(!b)return;const name=b.closest('tr').dataset.n;const sk=BY_NAME[name];
+    if(b.dataset.act==='alloc'){const ev=evalSkill(sk);for(const k in ev.need)S.st[k]+=ev.need[k];toast(`${name}：${lackText(ev)} を振りました`)}
+    if(b.dataset.act==='slot')addToSlot(name);
+    if(b.dataset.act==='unslot'){const i=S.slots.indexOf(name);if(i>=0)S.slots[i]=null}
+    if(b.dataset.act==='wish'){const i=S.wish.indexOf(name);if(i>=0)S.wish.splice(i,1);else S.wish.push(name)}
+    renderAll();
+  });
+  $('#wish-out').addEventListener('click',e=>{
+    if(e.target.id==='btn-wish-clear'){S.wish=[];renderAll()}
+    if(e.target.id==='btn-wish-apply'){
+      const w=wishCalc();
+      if(!confirm('能力値を☆スキルの必要値ちょうどに設定し、枠を追加して空き枠に☆スキルを入れます。よろしいですか？'))return;
+      S.st={...w.req};S.waku=Math.max(S.waku,w.wakuNeed);compactSlots();
+      for(const sk of w.list)if(evalSkill(sk).ok&&!S.slots.slice(0,slotCount()).includes(sk.name)){const n=slotCount();for(let i=0;i<n;i++)if(!S.slots[i]){S.slots[i]=sk.name;break}}
+      renderAll();toast('適用しました');
+    }
+  });
+
+  $('#btn-save').onclick=()=>{const nm=norm($('#preset-name').value)||`${S.role} Lv${S.lv} ${new Date().toLocaleString('ja-JP')}`;const p=refreshPresets();p[nm]=S;ls.set(LS_PRESETS,JSON.stringify(p));refreshPresets();$('#preset-sel').value=nm;toast('保存しました')};
+  $('#btn-load').onclick=()=>{const p=refreshPresets(),nm=$('#preset-sel').value;if(!p[nm])return;S=sanitize(p[nm]);$('#preset-name').value=nm;renderAll();toast('読み込みました')};
+  $('#btn-del').onclick=()=>{const p=refreshPresets(),nm=$('#preset-sel').value;if(!p[nm]||!confirm(`「${nm}」を削除しますか？`))return;delete p[nm];ls.set(LS_PRESETS,JSON.stringify(p));refreshPresets()};
+  $('#btn-code').onclick=()=>copyText(encodeKanji());
+  $('#btn-url').onclick=()=>{const url=shareUrl();if(HOSTED)history.replaceState(null,'',url);copyText(url)};
+  $('#btn-code-load').onclick=()=>{
+    try{const r=readCode($('#code-in').value);S=r.state;renderAll();toast('ビルドを読み込みました'+codeMsg(r))}
+    catch(e){toast('コードを読めませんでした')}
+  };
+  $('#btn-text').onclick=()=>copyText(exportText());
+  $('#btn-reset').onclick=()=>{if(confirm('入力を初期状態に戻しますか？（保存済みビルドは残ります）')){S=defState();history.replaceState(null,'',location.href.split('#')[0]);renderAll()}};
+
+  $('#data-file').onchange=e=>{
+    const f=e.target.files[0];if(!f)return;const rd=new FileReader();
+    rd.onload=()=>{setData(parseTextData(decodeBytes(rd.result)),'file',f.name);e.target.value=''};
+    rd.readAsArrayBuffer(f);
+  };
+  $('#btn-refresh').onclick=()=>requestRefresh(true);
+  if(HOSTED)$('#btn-refresh').textContent='skills.csv を再読込';
+  $('#btn-csv').onclick=()=>{
+    const a=document.createElement('a');
+    a.href=URL.createObjectURL(new Blob([toCSV(DATA.rows)],{type:'text/csv'}));a.download='skills.csv';a.click();
+    setTimeout(()=>URL.revokeObjectURL(a.href),1000);
+  };
+  $('#btn-data-reset').onclick=()=>{ls.del(LS_CACHE);DATA=builtinData();buildSkills(DATA.rows);setupFilters();renderAll();toast('内蔵データに戻しました')};
+
+  renderAll();
+  scheduleRefresh(); // 開きっぱなし対策：6:00/18:00に再読込（配信時はCSV、ローカルは連携スクリプト）
+}
+init();
+</script>
+</body>
+</html>
