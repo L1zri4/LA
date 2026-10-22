@@ -138,30 +138,9 @@ textarea{width:100%;height:120px;background:#151816;color:#eee;border:1px solid 
   <div class="card">
     <h2>スキルデータ</h2>
     <div id="data-status" class="notes"></div>
-    <div class="row">
-      <button id="btn-refresh" title="連携スクリプト経由でゲームのスキル一覧を今すぐ取得">今すぐ再取得</button>
-      <button id="btn-csv">CSVで保存</button>
-      <button id="btn-data-reset">内蔵データに戻す</button>
-    </div>
-    <div class="row"><input type="file" id="data-file" accept=".csv,.htm,.html,.txt,.tsv"></div>
-    <details><summary>データ更新の仕組み</summary>
-      <div class="muted">
-        <b>Web配信時（GitHub Pages等）</b>：HTMLと同じ場所の <code>skills.csv</code> を開くたびに読み直します。CSVを差し替えてpushするだけで全員に反映されます（GitHub Pagesはキャッシュの都合で最大10分程度遅れることがあります）。<br>
-        <b>ローカルで開いた時</b>：前回読んだデータ（キャッシュ）か内蔵データを使います。上の欄から <code>skills.csv</code> やスキル一覧ページを保存したHTMLを読み込めば差し替えられます。連携スクリプト（LA ビルドシミュ スキル取得.user.js）を入れていれば、6:00／18:00にゲームから自動取得します。<br>
-        skills.csv の中身は、CSV（<code>スキル名,使用条件,取得条件,効果</code>）と「LA スキル一覧 wiki化」の出力のどちらでも読めます。
-      </div>
-    </details>
+    <div class="row"><button id="btn-refresh">skills.csv を再読込</button></div>
   </div>
 
-  <details class="card"><summary>使い方・前提</summary>
-    <div class="muted">
-      ・使用可能STPは「能力値・枠に振る前」の総量を入れてください（ゲーム画面の残りSTP＋既に振った分）。<br>
-      ・取得判定：単系統＝その能力値が閾値以上、複系統＝両方が閾値以上、役割スキル＝役割一致かつキャラLv以上、スキルブック＝所持（＋役割指定があれば一致）。<br>
-      ・レベルによる基礎ステータス上昇や役割補正は非公開のため扱っていません。<br>
-      ・「到達不能」判定：アクティブは上から順に判定されるため、上に「SLvN以上/通常時」があると、それ以上のSLvを要するアクティブは発動しません。<br>
-      ・状態はこのブラウザに自動保存されます。
-    </div>
-  </details>
 </section>
 
 <!-- ===== 中：スキル枠 ===== -->
@@ -612,7 +591,7 @@ const KEY2JA={};STATS.forEach(([k,j])=>KEY2JA[k]=j);
 const ROLES=['TANK','DPS','HEAL','SUP'];
 const BOOKS=['猛毒','凍結','呪縛','麻痺','治癒','平穏','祝福','加護'];
 const WAKU_COST=[35,40,45,50,60,70];
-const BASE_SLOTS=6,MAX_WAKU=6,MAX_SLOTS=12,MAX_LV=99;
+const BASE_SLOTS=6,MAX_WAKU=6,MAX_SLOTS=12,MAX_LV=15;
 const PASSIVE_ORDER=['戦闘開始時','ターン開始時','ターン終了前','自分行動前','自分行動後','被攻撃前','戦闘離脱前','戦闘離脱後','与回復後','与ダメ後','与クリティカル前','回避時','被攻撃後'];
 const LS_STATE='la-buildsim-state',LS_PRESETS='la-buildsim-presets',LS_CACHE='la-buildsim-skills';
 const MIN_ROWS=50;
@@ -762,7 +741,6 @@ function renderDataStatus(){
   $('#data-info').textContent=`スキル${SKILLS.length}件・${src}（${fmtTime(DATA.at)}）`;
   $('#data-status').innerHTML=`
     <div>現在：<b>${esc(src)}</b>${DATA.label?'（'+esc(DATA.label)+'）':''} ${SKILLS.length}件 ／ ${fmtTime(DATA.at)}時点</div>
-    <div>${HOSTED?'配信元：同じ場所の skills.csv（開くたびに読み直し）':`連携スクリプト：${BRIDGE?'<span class="pos">有効</span>':'<span class="muted">未検出</span>'} ／ 次回更新：${fmtTime(nextBoundary())}${needRefresh()?' <span class="b warn">更新待ち</span>':''}`}</div>
     ${BRIDGE_MSG?`<div class="${/失敗/.test(BRIDGE_MSG)?'neg':''}">${esc(BRIDGE_MSG)}</div>`:''}`;
 }
 
@@ -1015,7 +993,7 @@ function renderSlots(){
   notes.push(`<div>アクティブ ${L.act} ／ パッシブ ${L.pas}</div>`);
   const tr=Object.entries(L.trig).sort((a,b)=>PASSIVE_ORDER.indexOf(a[0])-PASSIVE_ORDER.indexOf(b[0]));
   if(tr.length)notes.push(`<div class="muted">パッシブ内訳：${tr.map(([t,c])=>esc(t)+'×'+c).join('、')}</div>`);
-  if(L.act&&!L.hasSlv0)notes.push(`<div><span class="b warn">注意</span>「SLv0以上/通常時」のアクティブがありません。条件を満たすアクティブが無い行動が発生します。</div>`);
+  if(L.act&&!L.hasSlv0)notes.push(`<div><span class="b warn">注意</span>「SLv0以上/通常時」のアクティブがありません。「通常攻撃」が発生します。</div>`);
   if(!L.act)notes.push(`<div><span class="b warn">注意</span>アクティブスキルが設定されていません。</div>`);
   $('#slot-notes').innerHTML=notes.join('');
 }
@@ -1197,19 +1175,7 @@ async function init(){
   $('#btn-text').onclick=()=>copyText(exportText());
   $('#btn-reset').onclick=()=>{if(confirm('入力を初期状態に戻しますか？（保存済みビルドは残ります）')){S=defState();history.replaceState(null,'',location.href.split('#')[0]);renderAll()}};
 
-  $('#data-file').onchange=e=>{
-    const f=e.target.files[0];if(!f)return;const rd=new FileReader();
-    rd.onload=()=>{setData(parseTextData(decodeBytes(rd.result)),'file',f.name);e.target.value=''};
-    rd.readAsArrayBuffer(f);
-  };
   $('#btn-refresh').onclick=()=>requestRefresh(true);
-  if(HOSTED)$('#btn-refresh').textContent='skills.csv を再読込';
-  $('#btn-csv').onclick=()=>{
-    const a=document.createElement('a');
-    a.href=URL.createObjectURL(new Blob([toCSV(DATA.rows)],{type:'text/csv'}));a.download='skills.csv';a.click();
-    setTimeout(()=>URL.revokeObjectURL(a.href),1000);
-  };
-  $('#btn-data-reset').onclick=()=>{ls.del(LS_CACHE);DATA=builtinData();buildSkills(DATA.rows);setupFilters();renderAll();toast('内蔵データに戻しました')};
 
   renderAll();
   scheduleRefresh(); // 開きっぱなし対策：6:00/18:00に再読込（配信時はCSV、ローカルは連携スクリプト）
